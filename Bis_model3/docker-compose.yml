@@ -1,0 +1,33 @@
+﻿version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: isense_rag_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./backend/storage:/app/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: isense_web_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend

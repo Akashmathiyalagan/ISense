@@ -1,0 +1,5 @@
+﻿User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /settings
+Sitemap: https://isense.bis.gov.in/sitemap.xml
