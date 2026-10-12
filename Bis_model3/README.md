@@ -1,217 +1,229 @@
-# ISense — RAG-Based BIS Certification Assistance Platform
-### *Production-Grade Enterprise Architecture*
+# ISense — SIH 2026 Development Guide
 
-**ISense** is an AI-powered Bureau of Indian Standards (BIS) certification assistance platform designed to guide manufacturers, importers, MSMEs, and brand owners through the statutory certification lifecycle.
+ISense is a **Smart India Hackathon (SIH) prototype** exploring the use of AI and Retrieval-Augmented Generation (RAG) to help users find and understand Bureau of Indian Standards (BIS) requirements. This document explains the current repository structure, local development setup, and integration status.
 
----
+ISense is an independent prototype, not an official BIS service. It cannot grant licences, issue Standard Marks, or guarantee product compliance.
 
-## 🌟 Architecture Highlights
+> **Current status:** The web application and FastAPI/RAG backend are under development. WhatsApp webhook integration is present in the project. Meta has accepted the custom WhatsApp Flow JSON, but publishing has been blocked by a Meta integrity restriction. The complete dynamic Flow has not yet been verified end to end.
 
-### 1. Dual Entry-Point Philosophy
-- **WhatsApp Interface**: Targeted at first-time applicants who find statutory portals daunting. Natural step-by-step guidance, conversational photo/spec upload, and 24/7 AI assistance.
-- **Web SaaS Platform**: Built for enterprise multi-product management, document repositories, and live milestone tracking.
-- **Unified Backend Sync**: Both interfaces connect to the **same central FastAPI database, document repository, and grounded RAG model**.
+## Project Components
 
-### 2. Grounded RAG Knowledge Base Model
-- **Knowledge Base**: Curated Indian Standards (**IS 16102**, **IS 13252**, **IS 1293**, **IS 374**, **IS 616**, **MeitY CRS Procedural Orders**, **Scheme of Inspection & Testing (SIT)**).
-- **Retrieval Engine**: Pure-Python TF-IDF vector cosine similarity + BM25 keyword boosting for zero-dependency portability and immunity to Windows DLL Application Control blocks.
-- **Real-Time Citations**: Every response quotes verbatim clauses, section numbers, and page numbers from official statutory schedules.
+### Web application
+The React/Vite frontend provides the user interface for interacting with ISense and the backend.
 
-### 3. Real-Time Synchronization Pipeline
-- **Server-Sent Events (SSE)**: Streams events (`GET /api/events`) directly to all open browser windows when applications are created, documents uploaded, or readiness recalculated.
-- **Full-Duplex WebSockets**: Persistent duplex channel at `ws://localhost:8000/ws/live`.
-- **Floating Real-Time Toasts**: Instant visual feedback in the UI for state changes.
-- **Automatic Readiness Recalculation**: Uploading documents immediately updates application progress scores and advances milestones.
+### RAG backend
+The FastAPI backend contains the regulatory-document ingestion pipeline, standard detection, hybrid retrieval, and LLM-provider integration.
 
----
+The current retrieval implementation includes:
+- Dense semantic retrieval using Sentence Transformers with all-MiniLM-L6-v2 when available.
+- BM25 lexical retrieval.
+- Exact BIS standard-number matching boosts.
+- TF-IDF fallback if dense embeddings are unavailable.
+- Document metadata and chunk-level source information.
+- Grounded response instructions and insufficient-evidence handling.
 
-## 🚀 Quick Start (Development)
+This is the current baseline. Query-aware routing, hierarchical retrieval, and reranking are possible future improvements and should not be described as implemented until they are added and tested.
 
-### 1. Frontend
-```bash
-cd Bis_model3
+### WhatsApp integration
+The project includes WhatsApp Cloud API webhook/message integration. Dynamic WhatsApp Flow support requires a published Flow, a reachable HTTPS data-exchange endpoint, correctly configured encryption keys, and successful live testing. At present, Meta's integrity restriction prevents publication, so the complete dynamic form flow remains in progress.
+
+## Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| React and Vite | Frontend |
+| Python and FastAPI | Backend APIs |
+| Sentence Transformers | Dense semantic search |
+| BM25 | Keyword retrieval |
+| scikit-learn TF-IDF | Fallback retrieval |
+| Google Gemini | LLM responses when configured |
+| OpenAI API | Optional LLM fallback when configured |
+| Meta WhatsApp Cloud API | WhatsApp integration |
+| Pytest | Automated tests |
+| Docker Compose | Optional containerized setup |
+
+## Repository Layout
+
+~~~text
+ISense/
+├── README.md
+└── Bis_model3/
+    ├── README.md
+    ├── .env.example
+    ├── package.json
+    ├── src/
+    ├── public/
+    ├── docker-compose.yml
+    ├── Dockerfile
+    └── backend/
+        ├── main.py
+        ├── rag_engine.py
+        ├── rag/
+        ├── storage/
+        ├── tests/
+        └── requirements.txt
+~~~
+
+## Quick Start — Local Development
+
+### Prerequisites
+
+- Python installed and compatible with backend dependencies.
+- Node.js and npm.
+- Git.
+- A Gemini API key or another supported provider key if live LLM generation is required.
+- Meta WhatsApp Cloud API credentials only when testing WhatsApp features.
+
+### 1. Clone the repository
+
+~~~bash
+git clone https://github.com/Akashmathiyalagan/ISense.git
+cd ISense/Bis_model3
+~~~
+
+### 2. Configure environment variables
+
+Create a local .env from the example file:
+
+**Windows PowerShell**
+~~~powershell
+Copy-Item .env.example .env
+~~~
+
+Edit .env locally and enter the values you need. The example file documents the main variables:
+
+~~~dotenv
+VITE_API_BASE_URL=http://localhost:8000
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+OPENAI_API_KEY=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_VERIFY_TOKEN=
+WHATSAPP_APP_SECRET=
+WHATSAPP_GRAPH_API_VERSION=v22.0
+~~~
+
+These are placeholders; do not paste actual credentials into this README. Do not commit .env, real tokens, API keys, or private encryption keys.
+
+### 3. Start the frontend
+
+From the Bis_model3 directory:
+
+~~~bash
 npm install
 npm run dev
-```
-Open **[http://localhost:5174/](http://localhost:5174/)** in your browser.
+~~~
 
-### 2. RAG Backend
-```bash
-cd Bis_model3/backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
-API Documentation available at **[http://localhost:8000/docs](http://localhost:8000/docs)**.
+Open the local address printed by Vite. The configured backend URL is controlled by VITE_API_BASE_URL.
 
----
+### 4. Install and start the backend
 
-## 🏭 Production Deployment
+Open a second terminal:
 
-### Option A: Docker Compose (Recommended for Cloud / Linux / Servers)
-Builds multi-stage Nginx frontend + Python production backend with Gzip compression and security headers:
-```bash
-docker compose up --build -d
-```
-- Web Application: `http://localhost/` (Port 80)
-- Backend API: `http://localhost:8000/` (Port 8000)
-
-### Option B: Native Windows Production Script
-Double-click or run:
-```powershell
-.\start-production.bat
-```
-
-### Option C: Production Manual Preview
-```bash
-# 1. Build frontend bundle
-npm run build
-
-# 2. Preview production build
-npm run preview -- --port 5174 --host
-```
-
----
-
-## 🔒 Production Security & Reliability Features
-
-- **Persistent Database**: File-backed storage in `backend/storage/isense_db.json` ensures state survives server restarts.
-- **GZip Compression**: Fast compressed response delivery with `GZipMiddleware(minimum_size=1000)`.
-- **Global ErrorBoundary**: Client-side runtime crashes are caught with a clean recovery screen and reload action.
-- **Security Headers**: `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`.
-- **Production SEO & Meta**: OpenGraph, Twitter card, robots.txt, and web app manifest included.
-
----
-
-## 📱 Meta WhatsApp Cloud API Integration (Windows PowerShell Guide)
-
-ISense connects directly to the **Meta WhatsApp Cloud API (Graph v22.0)** to provide regulatory guidance via WhatsApp.
-
-### Webhook & Status Endpoints
-- **Webhook Verification (GET)**: `http://localhost:8000/api/webhook/whatsapp`
-- **Incoming Messages (POST)**: `http://localhost:8000/api/webhook/whatsapp`
-- **Status & Diagnostics (GET)**: `http://localhost:8000/api/whatsapp/status`
-
----
-
-### Step 1: Install Dependencies
-Open Windows PowerShell in the backend directory:
-```powershell
-cd e:\BIS\BIS_model3\Bis_model3\backend
+~~~powershell
+cd ISense/Bis_model3/backend
+python -m venv venv
+venv/Scripts/Activate.ps1
 python -m pip install -r requirements.txt
-```
+~~~
 
----
+Start the API:
 
-### Step 2: Configure Environment Variables
-Copy `.env.example` to `.env` if not already present:
-```powershell
-Copy-Item .env.example .env
-```
-Populate the WhatsApp configuration block in `backend/.env`:
-```dotenv
-# Meta WhatsApp Cloud API Credentials
-WHATSAPP_ACCESS_TOKEN="<Your_Meta_System_User_or_Temporary_Access_Token>"
-WHATSAPP_PHONE_NUMBER_ID="<Your_Meta_Phone_Number_ID>"
-WHATSAPP_VERIFY_TOKEN="<Your_Strong_Random_Verify_Token>"
-WHATSAPP_APP_SECRET="<Your_Meta_App_Secret>"
-WHATSAPP_GRAPH_API_VERSION="v22.0"
-```
-
-> **Security Note:** Never commit `.env` or paste real tokens into repositories. `.gitignore` is pre-configured to exclude all `.env` files.
-
----
-
-### Step 3: Meta Developer App Setup & Credentials
-1. Navigate to the [Meta for Developers Portal](https://developers.facebook.com/) and open your Business App.
-2. In the left sidebar, expand **WhatsApp** and click **API Setup**.
-3. **Phone Number ID**: Copy the numeric ID from the **Phone number ID** field and set it as `WHATSAPP_PHONE_NUMBER_ID`.
-4. **Access Token**:
-   - For rapid testing, copy the 24-hour **Temporary access token**.
-   - For production, create a **System User** with the `whatsapp_business_messaging` permission under Meta Business Settings to generate a permanent token. Set as `WHATSAPP_ACCESS_TOKEN`.
-5. **App Secret**: Navigate to **App Settings** -> **Basic** -> click **Show** next to **App Secret**. Copy and set as `WHATSAPP_APP_SECRET`.
-6. **Verify Token**: Choose any secret random string (e.g. `ISense_BIS_Verify_2026_Ak7x9pQ2`) and set it as `WHATSAPP_VERIFY_TOKEN`.
-
----
-
-### Step 4: Run the Backend Locally
-Start the FastAPI server:
-```powershell
+~~~powershell
 python -m uvicorn main:app --host 127.0.0.1 --port 8000
-```
-Verify status readiness:
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/whatsapp/status" -Method GET
-```
-Expected output:
-```json
-{
-  "status": "ready",
-  "service": "Meta WhatsApp Cloud API (Graph v22.0)",
-  "webhookEndpoint": "/api/webhook/whatsapp",
-  "readiness": {
-    "configured": true,
-    "fullyConfigured": true
-  }
-}
-```
+~~~
 
----
+Open http://127.0.0.1:8000/docs for interactive API documentation.
 
-### Step 5: Expose Backend via HTTPS Development Tunnel
-Meta requires a public HTTPS URL for webhooks. In a new PowerShell terminal, run either `ngrok` or `cloudflared`:
+If port 8000 is already occupied, use another port and update VITE_API_BASE_URL and any relevant webhook configuration so they match.
 
-**Option A (ngrok):**
-```powershell
-ngrok http 8000
-```
-*Copy the HTTPS forwarding address (e.g., `https://abc-123.ngrok-free.app`).*
+### 5. Optional: run with Docker Compose
 
-**Option B (Cloudflare Tunnel - free, no account required):**
-```powershell
-winget install --id Cloudflare.cloudflared
-cloudflared tunnel --url http://127.0.0.1:8000
-```
-*Copy the generated `https://*.trycloudflare.com` URL.*
+From Bis_model3, review the provided compose configuration and environment requirements, then run:
 
----
+~~~bash
+docker compose up --build
+~~~
 
-### Step 6: Configure Callback URL & Verification in Meta
-1. In Meta Developer Portal, go to **WhatsApp** -> **Configuration**.
-2. Under **Webhook**, click **Edit**.
-3. In **Callback URL**, enter:
-   ```
-   https://<your-public-tunnel-domain>/api/webhook/whatsapp
-   ```
-4. In **Verify token**, enter your configured `WHATSAPP_VERIFY_TOKEN`.
-5. Click **Verify and save**. Meta will issue a `GET` request to your backend; the server validates the token with constant-time HMAC comparison and returns `hub.challenge` immediately.
+For SIH demonstration and local debugging, native frontend/backend startup is usually easier because it exposes logs directly.
 
----
+## WhatsApp Cloud API
 
-### Step 7: Subscribe to WhatsApp Message Events
-1. In Meta Developer Portal -> **WhatsApp** -> **Configuration** -> **Webhook fields**.
-2. Locate the **messages** field and click **Manage** / **Subscribe**.
-3. Ensure the subscription toggle is enabled for `messages`.
+The project documents these development endpoints:
 
----
+- Webhook verification: GET /api/webhook/whatsapp
+- Incoming WhatsApp webhook: POST /api/webhook/whatsapp
+- Status and diagnostics: GET /api/whatsapp/status
 
-### Step 8: Test Integration with a Permitted WhatsApp Recipient
-1. In Meta Developer Portal -> **WhatsApp** -> **API Setup**.
-2. Under **Step 2: Send and receive messages**, locate the **To** dropdown.
-3. If using a development test phone number, click **Manage phone number list** and add your personal WhatsApp number (+91...). Complete the verification code sent by Meta.
-4. Send an inquiry from your WhatsApp phone to the Meta test number:
-   - *"What standard applies to LED lamps?"*
-   - *"What are the insulation resistance limits under IS 16102?"*
-   - *"What Indian Standard covers ceiling fans?"*
-5. The backend validates `X-Hub-Signature-256`, retrieves grounded regulatory clauses via `rag_engine`, and automatically replies with formatted WhatsApp text, official BIS citations, and statutory disclaimers!
+When testing webhooks locally, expose the backend through an HTTPS tunnel such as ngrok, then set the callback URL in the Meta Developer dashboard. A temporary tunnel URL can change and is not a production endpoint.
 
----
+### Dynamic WhatsApp Flow status
 
-### Step 9: Troubleshooting Common Errors
+The custom Flow JSON passed Meta's JSON validation, but publishing returned:
 
-| Error / Code | Root Cause | Solution |
-| :--- | :--- | :--- |
-| **403 Verification token mismatch** | `hub.verify_token` did not match `WHATSAPP_VERIFY_TOKEN`. | Check that the token entered in Meta matches `WHATSAPP_VERIFY_TOKEN` in `.env`. |
-| **401 Missing / Invalid signature** | `X-Hub-Signature-256` header missing or hash mismatch. | Verify `WHATSAPP_APP_SECRET` matches your Meta App Secret under App Settings -> Basic. |
-| **190 Invalid OAuth Access Token** | Temporary token has expired (24h limit). | Generate a new token in API Setup or create a permanent System User Token. |
-| **131047 Message failed to send** | Recipient is outside 24-hour customer service window. | The user must first message your WhatsApp business number before free-form answers can be dispatched. |
-| **Duplicate Message Ignored** | Meta retried delivery of an already processed event. | Normal behavior; ISense automatically deduplicates via persistent store `storage/processed_whatsapp_messages.json`. |
+- Error code: 139000
+- Error subcode: 4233020
+- Message: “Blocked by Integrity — Integrity requirements not met.”
 
+This is a Meta-side publication restriction. It does not by itself prove that the code or JSON is invalid. Avoid claiming the interactive Flow works end to end until Meta allows publishing and live encrypted data exchange and form submission are tested.
+
+## Testing
+
+Run backend tests from the backend directory:
+
+~~~bash
+python -m pytest
+~~~
+
+Run a focused group of tests when those files exist in your current checkout:
+
+~~~bash
+python -m pytest tests/test_dynamic_flow_endpoint.py tests/test_whatsapp_flows.py -q
+~~~
+
+Tests passing locally do not guarantee that Meta's hosted Flow, webhook delivery, encryption exchange, or external LLM provider will work in production.
+
+## RAG Pipeline
+
+The current request path is broadly:
+
+1. Ingest and clean supported regulatory documents.
+2. Extract metadata and divide the documents into searchable chunks.
+3. Build dense and lexical retrieval indexes.
+4. Detect standard-number references and retrieve candidate evidence.
+5. Generate a response using the configured LLM provider and retrieved passages.
+6. Return available source and citation metadata.
+
+The evidence base is limited to the documents actually indexed and correctly parsed by the application. Always validate legal and certification requirements against current official BIS publications.
+
+## SIH Scope and Roadmap
+
+- [x] Web application and FastAPI backend foundation
+- [x] Initial RAG pipeline with hybrid retrieval
+- [x] BIS standard detection and source metadata
+- [x] WhatsApp webhook/message integration in development
+- [x] Custom Flow JSON accepted by Meta's validator
+- [ ] Resolve Meta Flow publishing restriction
+- [ ] Validate complete encrypted Flow data exchange
+- [ ] Test end-to-end interactive product data collection
+- [ ] Improve query-aware retrieval and add evaluation metrics
+- [ ] Evaluate hierarchical retrieval and reranking
+- [ ] Document reproducible demo and test results
+
+## Responsible Use
+
+ISense provides assistance to navigate information. It is not a substitute for official BIS decisions. Users should verify current standards, applicability, orders, fees, testing obligations, and exemptions against official BIS or relevant government sources. Responses should not claim certification or compliance without documentary evidence.
+
+## SIH Submission Details
+
+Add these details if required for your submission:
+
+- SIH problem-statement ID: [add official ID]
+- Team name: [add team name]
+- Institution: [add institution]
+- Team members: [add names]
+
+## License
+
+Check the repository's licensing requirements with your team before adding a licence. No licence is asserted by this document.
