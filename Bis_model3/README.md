@@ -4,7 +4,7 @@ ISense is a **Smart India Hackathon (SIH) prototype** exploring the use of AI an
 
 ISense is an independent prototype, not an official BIS service. It cannot grant licences, issue Standard Marks, or guarantee product compliance.
 
-> **Current status:** The web application and FastAPI/RAG backend are under development. WhatsApp webhook integration is present in the project. Meta has accepted the custom WhatsApp Flow JSON, but publishing has been blocked by a Meta integrity restriction. The complete dynamic Flow has not yet been verified end to end.
+> **SIH prototype status:** The web application and FastAPI/RAG backend are under development. A conversational WhatsApp product questionnaire now uses interactive list messages and does not require native Flow publication. Its automated tests have been added but must be run in your local checkout, and real WhatsApp end-to-end behaviour still needs verification. The separate native WhatsApp Flow JSON passed Meta validation, but native Flow publishing is blocked by a Meta integrity restriction.
 
 ## Project Components
 
@@ -25,7 +25,13 @@ The current retrieval implementation includes:
 This is the current baseline. Query-aware routing, hierarchical retrieval, and reranking are possible future improvements and should not be described as implemented until they are added and tested.
 
 ### WhatsApp integration
-The project includes WhatsApp Cloud API webhook/message integration. Dynamic WhatsApp Flow support requires a published Flow, a reachable HTTPS data-exchange endpoint, correctly configured encryption keys, and successful live testing. At present, Meta's integrity restriction prevents publication, so the complete dynamic form flow remains in progress.
+The project includes WhatsApp Cloud API webhook/message integration.
+
+**Conversational questionnaire (Option 1):** Product-only messages such as water bottle, backpack, or RC car start a product-specific sequence of WhatsApp interactive list messages. The backend persists progress per sender, advances on the user's selected answer, supports cancellation, and sends the completed product details to the existing RAG assistant. This approach does not depend on publishing a native WhatsApp Flow.
+
+The conversational path is committed but still needs test execution in the local checkout and live end-to-end verification with Meta. Users should test within the customer-service messaging window and use a recipient who has initiated or consented to the conversation.
+
+**Native WhatsApp Flow (optional alternative):** The custom Flow JSON passed Meta's validator, but publishing returned an integrity restriction. Native Flow support needs a published Flow, a reachable HTTPS data-exchange endpoint, correctly configured encryption keys, and successful live testing. It is not required for the conversational questionnaire.
 
 ## Technology Stack
 
@@ -58,9 +64,13 @@ ISense/
     └── backend/
         ├── main.py
         ├── rag_engine.py
+        ├── whatsapp_service.py
+        ├── whatsapp_questionnaire.py
+        ├── whatsapp_flow_endpoint.py
         ├── rag/
         ├── storage/
         ├── tests/
+        │   └── test_whatsapp_questionnaire.py
         └── requirements.txt
 ~~~
 
@@ -176,6 +186,8 @@ Run backend tests from the backend directory:
 python -m pytest
 ~~~
 
+The conversational questionnaire includes focused tests for product classification, question progression, saved state, and cancellation in `tests/test_whatsapp_questionnaire.py`.
+
 Run a focused group of tests when those files exist in your current checkout:
 
 ~~~bash
@@ -203,10 +215,12 @@ The evidence base is limited to the documents actually indexed and correctly par
 - [x] Initial RAG pipeline with hybrid retrieval
 - [x] BIS standard detection and source metadata
 - [x] WhatsApp webhook/message integration in development
-- [x] Custom Flow JSON accepted by Meta's validator
-- [ ] Resolve Meta Flow publishing restriction
-- [ ] Validate complete encrypted Flow data exchange
-- [ ] Test end-to-end interactive product data collection
+- [x] Implement conversational product questionnaire using interactive lists
+- [x] Add questionnaire unit tests
+- [x] Custom native Flow JSON accepted by Meta's validator
+- [ ] Run local questionnaire tests and validate live WhatsApp interactions
+- [ ] Resolve native Flow publishing restriction (optional path)
+- [ ] Validate complete encrypted native Flow data exchange if pursued
 - [ ] Improve query-aware retrieval and add evaluation metrics
 - [ ] Evaluate hierarchical retrieval and reranking
 - [ ] Document reproducible demo and test results
