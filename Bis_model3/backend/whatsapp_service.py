@@ -369,6 +369,83 @@ class WhatsAppClient:
             logger.error(f"Unexpected error sending WhatsApp message: {type(e).__name__}")
             return {"success": False, "error": "Internal communication error."}
 
+    async def send_interactive_list(
+        self,
+        recipient_wa_id: str,
+        message_text: str,
+        options: List[str],
+        button_title: str = "Choose option",
+        section_title: str = "Answers",
+    ) -> Dict[str, Any]:
+        """Send a WhatsApp interactive list for the conversational questionnaire.
+
+        List replies are received by the standard messages webhook, so this
+        alternative does not require a published WhatsApp Flow.
+        """
+        if not self.config.is_configured():
+            return {"success": False, "error": "WhatsApp credentials are not configured."}
+
+        rows = []
+        for index, option in enumerate(options[:10]):
+            title = " ".join(str(option).split())[:24]
+            if not title:
+                continue
+            rows.append({
+                "id": f"option_{index + 1}",
+                "title": title,
+            })
+        if not rows:
+            return {"success": False, "error": "No valid interactive options were provided."}
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": recipient_wa_id,
+            "type": "interactive",
+            "interactive": {
+                "type": "list",
+                "body": {"text": (message_text or "Choose an option.")[:1024]},
+                "action": {
+                    "button": (button_title or "Choose option")[:20],
+                    "sections": [{
+                        "title": (section_title or "Answers")[:24],
+                        "rows": rows,
+                    }],
+                },
+            },
+        }
+        headers = {
+            "Authorization": f"Bearer {self.config.access_token}",
+            "Content-Type": "application/json",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(self.messages_endpoint, headers=headers, json=payload)
+            if response.status_code in (200, 201):
+                return {"success": True, "meta": response.json()}
+
+            # Keep credentials out of logs and return a generic message to the caller.
+            try:
+                error_data = response.json().get("error", {})
+                logger.error(
+                    "Meta rejected interactive list (HTTP %s, code %s).",
+                    response.status_code,
+                    error_data.get("code", "unknown"),
+                )
+            except Exception:
+                logger.error("Meta rejected interactive list (HTTP %s).", response.status_code)
+            return {
+                "success": False,
+                "status_code": response.status_code,
+                "error": "Failed to send WhatsApp interactive list.",
+            }
+        except httpx.TimeoutException:
+            logger.error("Timeout while sending WhatsApp interactive list.")
+            return {"success": False, "error": "Interactive list request timed out."}
+        except httpx.RequestError as exc:
+            logger.error("Network error while sending interactive list: %s", type(exc).__name__)
+            return {"success": False, "error": "Network error sending WhatsApp interactive list."}
+
     async def send_product_intake_flow(
         self, recipient_wa_id: str, product_name: str
     ) -> Dict[str, Any]:
