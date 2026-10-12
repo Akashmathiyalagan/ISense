@@ -277,6 +277,30 @@ def detect_bis_standard(product_name: str, category: str = "") -> Dict[str, Any]
             ]
         }
 
+    # For RC vehicles, only match the children's-toy candidate when the user's
+    # description explicitly indicates a toy/child market. "RC car" alone is ambiguous.
+    rc_vehicle_terms = ("rc car", "remote control car", "remote-controlled car", "rc vehicle", "model car")
+    child_toy_terms = (
+        "toy rc car", "rc toy", "toy for children", "children's toy", "childrens toy",
+        "children toy", "child", "children", "kids", "under 14", "under14",
+        "children aged", "toy intended for children",
+    )
+    if any(term in query_lower for term in rc_vehicle_terms) and any(term in query_lower for term in child_toy_terms):
+        toy_item = next(
+            item for item in KNOWN_BIS_STANDARDS_CATALOG
+            if "9873" in item.get("standard_code", "")
+        )
+        candidate = dict(toy_item)
+        candidate["is_verified"] = False
+        candidate["confidence"] = 0.70
+        candidate["match_type"] = "conditional_toy_candidate"
+        candidate["scope_summary"] = (
+            "Potential children's-toy candidate only. Confirm the product is designed/intended for children's play and check "
+            "the current Toys QCO, exclusions, and concurrent implementation of IS 9873 (Part 1):2018 and IS 9873 (Part 1):2025 "
+            "before declaring this the applicable standard or confirming compulsory certification."
+        )
+        return candidate
+
     # 2. Check for ambiguous descriptions (e.g., 'charger' could be mobile charger IS 13252 or EV charger IS 17017)
     if re.search(r'\bcharger\b', query_lower) and not any(k in query_lower for k in ["ev", "electric vehicle", "mobile", "phone", "usb"]):
         ev_item = next(s for s in KNOWN_BIS_STANDARDS_CATALOG if "17017" in s["standard_code"])
