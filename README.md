@@ -68,6 +68,26 @@ flowchart TD
     C --> WA
 ~~~
 
+## WhatsApp Questionnaire Screenshots
+
+The following screenshots are from a development test of the conversational product questionnaire. The user selected product details in WhatsApp, and ISense passed the collected answers to its RAG assistant.
+
+### 1. Selectable product questions
+
+![ISense WhatsApp questionnaire showing selectable answers](Bis_model3/docs/screenshots/whatsapp-question-options.jpg)
+
+### 2. Multi-step questionnaire in progress
+
+![ISense WhatsApp questionnaire progressing through product questions](Bis_model3/docs/screenshots/whatsapp-questionnaire-progress.jpg)
+
+### 3. RAG response after questionnaire completion
+
+![ISense WhatsApp assistant response after product details were submitted](Bis_model3/docs/screenshots/whatsapp-rag-response.jpg)
+
+**Evidence limitation shown in this test:** The assistant reported that its currently indexed BIS knowledge base did not contain the mandatory conformity-assessment or testing records specifically covering water bottles. It therefore asked for clarification and directed the user to verify official BIS sources instead of asserting an unsupported requirement. This is a development test, not proof of a complete or production-ready compliance determination.
+
+> The screenshot assets are stored in `Bis_model3/docs/screenshots/`. The native WhatsApp Flow remains a separate feature and is still blocked at Meta's publishing step; these screenshots demonstrate the alternative conversational questionnaire using WhatsApp interactive lists.
+
 ## Repository Structure
 
 ~~~text
