@@ -186,7 +186,7 @@ class GeminiLLMProvider(BaseLLMProvider):
                 return LLMGenerationResult(
                     text=synthesized_text,
                     is_success=True,
-                    provider="ISense Grounded Corpus Synthesis (Direct Verification)"
+                    provider="ISense Grounded Retrieval Fallback"
                 )
             else:
                 return LLMGenerationResult(
