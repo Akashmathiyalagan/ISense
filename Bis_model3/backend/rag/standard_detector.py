@@ -81,12 +81,12 @@ KNOWN_BIS_STANDARDS_CATALOG: List[Dict[str, Any]] = [
     },
     {
         "keywords": ["children toy", "toy for children", "toy intended for children", "educational toy", "plastic toy", "wooden toy", "electric toy", "non-electric toy"],
-        "standard_code": "IS 9873 (Part 1) : 2018",
+        "standard_code": "IS 9873 (Part 1) : 2019",
         "standard_title": "Safety of Toys Part 1: Safety Aspects Related to Mechanical and Physical Properties",
         "category": "Consumer Goods & Toys",
         "scheme": "Toys Quality Control Order / ISI Mark Scheme; scope and current edition must be checked for the exact product",
         "division": "Consumer Products Division (CPD 24)",
-        "scope_summary": "Candidate only for products that fall within the applicable toy definition and scope. The current BIS Scheme-I listing shows IS 9873 (Part 1):2018; BIS has also published IS 9873 (Part 1):2025 and extended its implementation date to 22 March 2027. Check current QCO scope and adult-collector-model exclusions before assigning this standard.",
+        "scope_summary": "Candidate only for products that fall within the applicable children’s-toy definition and scope. BIS publishes IS 9873 (Part 1):2019 and has issued the 2025 fifth revision with concurrent implementation extended to 22 March 2027. Confirm the currently applicable edition, QCO scope and adult-collector-model exclusions from current official BIS sources before assigning this standard or declaring certification compulsory.",
         "checklist": [
             "Mechanical Abuse & Small Parts Test Report",
             "Toxic Elements Migration Analysis (IS 9873 Part 3)",
