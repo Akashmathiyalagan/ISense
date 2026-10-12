@@ -206,6 +206,65 @@ class BISRAGEngine:
                 "warnings": []
             }
 
+        # Scope guard: do not force an adult hobby/collector RC model into the
+        # children's-toy catalogue solely because the product name contains "RC car".
+        rc_model = any(term in query_lower for term in (
+            "rc car", "remote control car", "remote-controlled car", "rc vehicle", "model car"
+        ))
+        adult_hobby_context = any(term in query_lower for term in (
+            "age 14+", "age 14 +", "14+ / hobby", "age 14 and over",
+            "hobby use", "adult hobby", "adult collector", "scale model",
+            "model / hobby vehicle", "model/hobby vehicle", "adult model",
+        ))
+        if rc_model and adult_hobby_context:
+            return {
+                "content": (
+                    "**RC / hobby vehicle — standard scope needs confirmation**\\n\\n"
+                    "Your answers describe a model/hobby vehicle for age 14+ or adult hobby use. "
+                    "I will not automatically assign the children's-toy Quality Control Order or an IS 9873 toy standard from the product name alone.\\n\\n"
+                    "**Relevant official scope note:** BIS's published scope for **IS 15644:2006 — Safety of Electric Toys** states that it does not apply to scale models for adult collectors. That exclusion applies only if this product genuinely meets that description; your answers alone do not establish the final regulatory classification.\\n\\n"
+                    "**Next steps**\\n"
+                    "1. Confirm how the product is marketed, labelled and intended to be used, including whether it is an adult collector's scale model or a children's toy.\\n"
+                    "2. Check the current BIS Scheme-I list and applicable Toys Quality Control Orders/amendments against that classification.\\n"
+                    "3. If the product is outside the children's-toy scope, ask BIS to confirm whether another Indian Standard or order applies before arranging tests or marking.\\n\\n"
+                    "Official references:\\n"
+                    "- [IS 15644:2006 — Safety of Electric Toys (published BIS preview)](https://www.services.bis.gov.in/tmp/SR15644.pdf)\\n"
+                    "- [BIS Scheme-I compulsory certification list](https://www.bis.gov.in/product-certification/products-under-compulsory-certification/scheme-i-mark-scheme/?lang=en)\\n"
+                    "- [BIS Know Your Standard](https://www.bis.gov.in/Know-Your-Standard/?lang=en)\\n"
+                    "- [BIS Manak Online](https://www.manakonline.in/)\\n\\n"
+                    "I cannot confirm a single applicable IS number or compulsory certification status until the product's scope is confirmed."
+                    + STATUTORY_DISCLAIMER_SUFFIX
+                ),
+                "sources": [
+                    {
+                        "id": "src-is15644-scope",
+                        "title": "IS 15644:2006 — Safety of Electric Toys",
+                        "documentRef": "IS 15644:2006",
+                        "page": None,
+                        "section": "Scope and exclusions",
+                        "excerpt": "The published BIS preview states that IS 15644:2006 does not apply to scale models for adult collectors.",
+                        "sourceUrl": "https://www.services.bis.gov.in/tmp/SR15644.pdf",
+                        "verification_status": "official_bis_publication"
+                    },
+                    {
+                        "id": "src-bis-scheme-i",
+                        "title": "BIS Scheme-I (ISI Mark Scheme)",
+                        "documentRef": "BIS Scheme-I compulsory certification list",
+                        "page": None,
+                        "section": "Product listing and QCO references",
+                        "excerpt": "Use the current official list to check whether the exact product and standard fall under compulsory certification.",
+                        "sourceUrl": "https://www.bis.gov.in/product-certification/products-under-compulsory-certification/scheme-i-mark-scheme/?lang=en",
+                        "verification_status": "official_bis_publication"
+                    }
+                ],
+                "confidence": 0.0,
+                "insufficient_evidence": True,
+                "warnings": [
+                    "Adult hobby/collector scope must be confirmed before matching children's-toy standards.",
+                    "Current QCO applicability has not been established from the user-provided description."
+                ]
+            }
+
         # 4. Standard Detection & Context Resolution
         std_filter = None
         if application_context and application_context.get("standardCode"):
