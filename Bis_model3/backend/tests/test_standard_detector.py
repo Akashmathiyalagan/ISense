@@ -75,3 +75,16 @@ def test_precedence_bug_fix_behavior():
         assigned_code = detected["standard_code"]
 
     assert assigned_code == "IS 374 : 2019"
+
+
+def test_adult_hobby_rc_car_is_not_automatically_classified_as_childrens_toy():
+    """An adult hobby model must trigger scope confirmation, not a toy IS by keyword."""
+    query = (
+        "Product: rc car. Product type: Model / hobby vehicle. "
+        "Intended user: Age 14+ / hobby use. Power source: Rechargeable battery."
+    )
+    result = detect_bis_standard(query)
+    assert result["is_supported"] is False
+    assert result["standard_code"] == "No Verified Standard Identified"
+    assert result["match_type"] == "scope_confirmation_required"
+    assert "adult hobby/model vehicle" in result["scope_summary"]
