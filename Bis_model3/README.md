@@ -168,6 +168,24 @@ The project documents these development endpoints:
 
 When testing webhooks locally, expose the backend through an HTTPS tunnel such as ngrok, then set the callback URL in the Meta Developer dashboard. A temporary tunnel URL can change and is not a production endpoint.
 
+### Conversational questionnaire screenshots
+
+These screenshots are from a development test of the WhatsApp interactive-list alternative. Users select details step by step; the collected answers are then sent to the RAG assistant.
+
+#### 1. Selectable product questions
+
+![WhatsApp product questionnaire options](docs/screenshots/whatsapp-question-options.jpg)
+
+#### 2. Multi-step questionnaire in progress
+
+![WhatsApp product questionnaire progress](docs/screenshots/whatsapp-questionnaire-progress.jpg)
+
+#### 3. RAG response after questionnaire completion
+
+![WhatsApp RAG response for a water bottle query](docs/screenshots/whatsapp-rag-response.jpg)
+
+In this test, the RAG assistant reported that the indexed knowledge base did not contain specific mandatory conformity-assessment or testing records for water bottles. It did not invent a specific BIS requirement and recommended checking official BIS sources. Treat this as a test demonstration, not a final regulatory determination.
+
 ### Dynamic WhatsApp Flow status
 
 The custom Flow JSON passed Meta's JSON validation, but publishing returned:
