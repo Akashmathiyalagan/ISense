@@ -1,0 +1,59 @@
+name: Refresh BIS standards catalogue PDF
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/update-bis-catalogue.yml"
+      - "scripts/scrape_bis_standards_catalogue.py"
+  workflow_dispatch:
+  schedule:
+    - cron: "19 3 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bis-catalogue-export
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install exporter dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install httpx reportlab
+          sudo apt-get update
+          sudo apt-get install -y fonts-dejavu-core
+
+      - name: Collect BIS published-standard metadata and build PDF/CSV
+        run: python scripts/scrape_bis_standards_catalogue.py --output-dir docs/bis-standards
+
+      - name: Commit updated catalogue files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/bis-standards/BIS_Published_Indian_Standards_Index.pdf
+          git add docs/bis-standards/BIS_Published_Indian_Standards_Index.csv
+          git add docs/bis-standards/catalogue-metadata.json
+          if git diff --cached --quiet; then
+            echo "The catalogue export is unchanged; no commit is needed."
+          else
+            git commit -m "Refresh BIS published standards catalogue"
+            git push origin HEAD:main
+          fi
