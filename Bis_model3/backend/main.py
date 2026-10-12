@@ -31,7 +31,7 @@ from whatsapp_service import (
     whatsapp_client,
     format_whatsapp_message,
 )
-from whatsapp_questionnaire import product_questionnaire
+from whatsapp_questionnaire import product_questionnaire as whatsapp_product_questionnaire
 
 # Security and password hashing utilities
 SALT = "isense_sec_salt_2025"
@@ -1466,7 +1466,7 @@ async def handle_whatsapp_webhook(
 
                     # Option 1: conversational product intake through WhatsApp buttons/lists.
                     # Unlike native WhatsApp Flows, this path works without Flow publication.
-                    active_questionnaire = product_questionnaire.has_session(from_number)
+                    active_questionnaire = whatsapp_product_questionnaire.has_session(from_number)
                     starts_questionnaire = (
                         msg_type == "text"
                         and should_open_product_intake_flow(text_body)
@@ -1474,9 +1474,9 @@ async def handle_whatsapp_webhook(
                     )
                     if config.is_configured() and (active_questionnaire or starts_questionnaire):
                         q_result = (
-                            product_questionnaire.handle_reply(from_number, text_body)
+                            whatsapp_product_questionnaire.handle_reply(from_number, text_body)
                             if active_questionnaire
-                            else product_questionnaire.start(from_number, text_body)
+                            else whatsapp_product_questionnaire.start(from_number, text_body)
                         )
 
                         if q_result.get("handled"):
