@@ -334,9 +334,22 @@ class WhatsAppProductQuestionnaire:
             "Based on the product details, identify any potentially applicable Indian Standard and its current edition, "
             "whether a current Quality Control Order or other official order makes certification compulsory, "
             "and the relevant testing and certification process for the user's stated activity. "
-            "Distinguish a children's toy from an adult hobby or collector model where that distinction matters. "
-            "Explain which points are supported by the retrieved official sources and which still need confirmation."
+            "Explain which points are supported by retrieved official sources and which still need confirmation."
         )
+
+        # Only append an adult-model scope note when the user's actual answers say so.
+        # Do not put that phrase into every RC-car query, or it can bias the classifier.
+        answer_text = " ".join(str(value) for value in session.get("answers", {}).values()).casefold()
+        if session.get("category") == "rc_car" and any(
+            term in answer_text for term in (
+                "age 14+", "hobby use", "adult hobby", "adult collector",
+                "model / hobby vehicle", "model/hobby vehicle", "scale model"
+            )
+        ):
+            lines.append(
+                "The user's answers describe an adult hobby/collector model. Check this product-scope distinction carefully; "
+                "do not automatically apply children's-toy standards or the toy QCO."
+            )
         return "\n".join(lines)
 
 
