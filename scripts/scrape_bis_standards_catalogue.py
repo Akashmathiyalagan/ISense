@@ -289,6 +289,31 @@ def draw_record(
     return y - 4.2
 
 
+def record_height(
+    record: dict[str, str],
+    column_width: float,
+    regular_font: str,
+    bold_font: str,
+) -> float:
+    """Measure one entry before drawing it, so no entry overlaps the page footer."""
+    pad = 4
+    content_width = column_width - 2 * pad
+    identifier = "1. " + record["is_number"]
+    id_size = 7.1
+    while pdfmetrics.stringWidth(identifier, bold_font, id_size) > content_width and id_size > 5.6:
+        id_size -= 0.2
+    title_lines = wrap_lines(record["title"], regular_font, 6.2, content_width, limit=3)
+    department = record["technical_department"] or "Department not listed"
+    standard_type = record["standard_type"] or "Type not listed"
+    published = record["published_on"] or "Date not listed"
+    committee = record["sectional_committee"]
+    meta = f"{department} | {standard_type} | {published}"
+    if committee:
+        meta += f" | {committee}"
+    meta_lines = wrap_lines(meta, regular_font, 4.9, content_width, limit=2)
+    return 10.0 + len(title_lines) * 7.2 + len(meta_lines) * 5.8 + 3.4 + 4.2
+
+
 def write_pdf(
     path: Path,
     records: list[dict[str, str]],
@@ -342,15 +367,15 @@ def write_pdf(
 
         y_positions = [top_y, top_y]
         column_x = [margin, margin + column_width + gap]
-        column_records = [0, 0]
 
-        while next_index < total_records and any(y > footer_y + 35 for y in y_positions):
-            for column in range(2):
-                if next_index >= total_records:
+        for column in range(2):
+            while next_index < total_records:
+                height_needed = record_height(
+                    records[next_index], column_width, regular_font, bold_font
+                )
+                if y_positions[column] - height_needed < footer_y + 13:
                     break
-                if y_positions[column] <= footer_y + 35:
-                    continue
-                new_y = draw_record(
+                y_positions[column] = draw_record(
                     pdf,
                     records[next_index],
                     next_index + 1,
@@ -360,18 +385,6 @@ def write_pdf(
                     regular_font,
                     bold_font,
                 )
-                # Each column is filled independently and entry metadata is capped
-                # so every item fits. If one entry barely crosses the lower limit,
-                # start the next page instead of clipping it.
-                if new_y < footer_y + 4 and column_records[column] > 0:
-                    # This record is already drawn; keep it visible and finish the
-                    # page. This branch is rare because record text is line-limited.
-                    y_positions[column] = new_y
-                    column_records[column] += 1
-                    next_index += 1
-                    continue
-                y_positions[column] = new_y
-                column_records[column] += 1
                 next_index += 1
 
         pdf.setStrokeColor(colors.HexColor("#DCE2E7"))
