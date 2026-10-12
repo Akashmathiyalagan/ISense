@@ -31,8 +31,8 @@ class BaseLLMProvider(ABC):
         pass
 
 class GeminiLLMProvider(BaseLLMProvider):
-    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
-        self.api_key = api_key
+    def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
+        self.api_key = api_key.strip().strip('"').strip("'")
         self.model_name = model_name
         self._init_client()
 
@@ -262,8 +262,9 @@ def get_llm_provider(mock_mode: bool = False, custom_mock_answer: Optional[str] 
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key and gemini_key.strip():
         try:
-            model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-            return GeminiLLMProvider(api_key=gemini_key.strip(), model_name=model)
+            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            clean_key = gemini_key.strip().strip('"').strip("'")
+            return GeminiLLMProvider(api_key=clean_key, model_name=model)
         except Exception as e:
             logger.warning(f"Failed to initialize Gemini provider: {e}")
 

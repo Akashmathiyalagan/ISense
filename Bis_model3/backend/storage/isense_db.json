@@ -19,6 +19,16 @@
       "userType": "Manufacturer",
       "organisation": "SolarTek Energy India",
       "createdAt": "2025-02-01T10:00:00Z"
+    },
+    "usr-3c86e7": {
+      "id": "usr-3c86e7",
+      "fullName": "AKASH.M",
+      "email": "asmg6306@gmail.com",
+      "passwordHash": "6df4b2ab15f98533fe748b4e33c1d7d58fdb9fcbc74ba60bf241a68bdb985be5",
+      "phone": "+919994510014",
+      "userType": "Manufacturer",
+      "organisation": "K.G College of Arts and Science",
+      "createdAt": "2026-10-10T14:31:02.521751"
     }
   },
   "applications": [
@@ -778,6 +788,51 @@
     }
   ],
   "activities": [
+    {
+      "id": "act-96b90a",
+      "applicationId": "APP-001",
+      "title": "AI Assistant Query",
+      "description": "Inquired about: rc car...",
+      "timestamp": "Just now",
+      "type": "ai_query",
+      "actor": "AKASH.M"
+    },
+    {
+      "id": "act-b35ddf",
+      "applicationId": "APP-001",
+      "title": "AI Assistant Query",
+      "description": "Inquired about: rc car...",
+      "timestamp": "Just now",
+      "type": "ai_query",
+      "actor": "AKASH.M"
+    },
+    {
+      "id": "act-0bfb7a",
+      "applicationId": "APP-001",
+      "title": "AI Assistant Query",
+      "description": "Inquired about: give me the details about rc car...",
+      "timestamp": "Just now",
+      "type": "ai_query",
+      "actor": "AKASH.M"
+    },
+    {
+      "id": "act-4826db",
+      "applicationId": "APP-001",
+      "title": "AI Assistant Query",
+      "description": "Inquired about: hello...",
+      "timestamp": "Just now",
+      "type": "ai_query",
+      "actor": "AKASH.M"
+    },
+    {
+      "id": "act-8144ca",
+      "applicationId": "APP-001",
+      "title": "AI Assistant Query",
+      "description": "Inquired about: hi...",
+      "timestamp": "Just now",
+      "type": "ai_query",
+      "actor": "AKASH.M"
+    },
     {
       "id": "act-fd93da",
       "applicationId": "APP-001",
@@ -1782,6 +1837,7 @@
     "isense_jwt_usr-9021_2d73a1ab86f2": "usr-9021",
     "isense_jwt_usr-9022_5688ce781b06": "usr-9022",
     "isense_jwt_usr-9022_237f7e59f8b3": "usr-9022",
-    "isense_jwt_usr-9022_4d12a131af91": "usr-9022"
+    "isense_jwt_usr-9022_4d12a131af91": "usr-9022",
+    "isense_jwt_usr-3c86e7_3c3eb6c03939": "usr-3c86e7"
   }
 }
