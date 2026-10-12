@@ -1213,25 +1213,40 @@ def get_whatsapp_greeting_response() -> Dict[str, Any]:
     }
 
 def should_open_product_intake_flow(text: str) -> bool:
-    """Return True for a product-only/description message, not a BIS question."""
+    """Return True for a likely product-only message, not greetings or BIS questions."""
     value = " ".join((text or "").strip().split())
     if not value or len(value) > 180 or "?" in value:
         return False
-    lower = value.lower()
-    if lower in {"hi", "hello", "hey", "good morning", "good afternoon", "good evening", "thanks", "thank you", "bye"}:
+
+    lower = value.casefold()
+    # Normalize elongated chat spellings only for intent checks (e.g. Hiii -> hi).
+    normalized = re.sub(r"(.)\1+", r"\1", lower)
+    conversational_short_replies = {
+        "hi", "hello", "hey", "yo", "hiya", "good morning", "good afternoon",
+        "good evening", "thanks", "thank you", "thx", "ty", "bye", "goodbye",
+        "ok", "okay", "k", "yes", "yeah", "yep", "no", "nope", "hmm", "hm",
+        "sure", "fine", "great", "cool", "start", "help", "cancel", "stop",
+    }
+    if normalized in conversational_short_replies:
         return False
-    # Messages asking a regulatory question should go directly to the RAG assistant.
+
+    # Standard-number mentions should go directly to the RAG assistant.
+    if re.search(r"\b(?:is|iso)\s*[-:]?\s*\d", lower):
+        return False
+
+    # Messages that already ask a regulatory question should go directly to RAG.
     question_terms = (
         "what ", "how ", "which ", "why ", "when ", "where ", "is it", "does it",
-        "document", "checklist", "standard", "is ", " qco", "fee", "fees",
+        "document", "checklist", "standard", "bis ", "qco", "fee", "fees",
         "test", "testing", "certification", "mandatory", "register", "registration",
         "apply", "application", "requirement", "requirements", "license", "licence",
-        "marking", "renewal", "bIS ".lower()
+        "marking", "renewal",
     )
     if any(term in lower for term in question_terms):
         return False
-    # Product names or descriptions such as "water bottle", "back bag",
-    # "I made a steel water bottle" launch the interactive intake form.
+
+    # Product names/descriptions with at most 10 words start the guided intake.
+    # General short greetings and acknowledgements have already been excluded.
     return len(value.split()) <= 10
 
 def format_flow_submission(raw_text: str) -> Optional[Dict[str, Any]]:
