@@ -329,9 +329,20 @@ class WhatsAppProductQuestionnaire:
         for key, value in session.get("answers", {}).items():
             lines.append(f"{labels.get(key, key)}: {value}")
         lines.append(
-            "Use only retrieved evidence to state any potentially applicable Indian Standard, Quality Control Order, "
-            "certification, testing, or marking requirement. Do not infer legal applicability from the user answers alone. "
-            "If the indexed official evidence is insufficient, say so and recommend checking current official BIS sources."
+            "Use only retrieved official BIS or government evidence for regulatory claims. The answers above are user-provided product facts, not evidence. "
+            "After retrieval, answer in this order: "
+            "(1) product scope and any remaining assumptions; "
+            "(2) potentially applicable Indian Standard number, full title and edition, with a short scope match; "
+            "(3) whether compulsory certification is established by a current QCO/official order, voluntary, or still unverified; "
+            "(4) testing, sampling, lab and product-manual/Scheme of Inspection and Testing requirements, with clause references where retrieved; "
+            "(5) practical next steps for the user's role (manufacturer, importer, seller, or personal-use consumer); "
+            "(6) required documents, application portal, marking, fees and timelines only where source evidence supports them; "
+            "(7) clickable official source links. "
+            "Do not state a standard number or mandatory status solely from Gemini's general knowledge or product similarity. "
+            "If there is no supporting source, explicitly say the exact standard or current QCO status could not be verified from the indexed corpus, "
+            "then name the missing evidence and link to the official BIS Know Your Standard portal (https://www.bis.gov.in/Know-Your-Standard/?lang=en), "
+            "Scheme-I list (https://www.bis.gov.in/product-certification/products-under-compulsory-certification/scheme-i-mark-scheme/?lang=en), "
+            "and Manak Online (https://www.manakonline.in/). Do not invent fees, time limits, documents, clauses, exemptions or URLs."
         )
         return "\n".join(lines)
 
