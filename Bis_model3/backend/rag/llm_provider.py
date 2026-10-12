@@ -148,15 +148,40 @@ class GeminiLLMProvider(BaseLLMProvider):
                         content_clean = content_clean[:280] + "..."
                     chunk_summaries.append(f"• **{c.standard_code}{clause_info}**:\n  {content_clean}")
 
+                # Use a short product label in the fallback heading instead of
+                # reproducing a multi-line questionnaire prompt or internal query.
+                display_query = " ".join((query or "").split())
+                for line in (query or "").splitlines():
+                    clean_line = line.strip().lstrip("-* ").strip()
+                    if clean_line.casefold().startswith("product name:"):
+                        display_query = clean_line.split(":", 1)[1].strip() or display_query
+                        break
+                display_query = display_query[:120] or "your product"
+
+                # A top-ranked retrieved standard is only a candidate. Retrieval
+                # similarity alone does not prove that its legal scope applies.
                 body_evidence = "\n\n".join(chunk_summaries)
+                source_lines = []
+                seen_urls = set()
+                for chunk in retrieved_chunks[:5]:
+                    source_url = (getattr(chunk, "source_url", None) or "").strip()
+                    if source_url and source_url not in seen_urls:
+                        seen_urls.add(source_url)
+                        source_lines.append(f"- {chunk.standard_code}: {source_url}")
+                source_text = "\n".join(source_lines) if source_lines else (
+                    "The retrieved passages did not provide usable source URLs."
+                )
 
                 synthesized_text = (
-                    f"**Regulatory Requirements for \"{query}\":**\n\n"
-                    f"Based on the official Bureau of Indian Standards (BIS) knowledge base, "
-                    f"this category is evaluated under **{primary_std}**.\n\n"
-                    f"**Key Statutory Testing Clauses & Specifications:**\n\n"
+                    f"**Retrieved BIS evidence for: {display_query}**\n\n"
+                    f"The indexed documents retrieved for this query mention **{primary_std}**. "
+                    "This is a search candidate, not proof that the standard or a compulsory certification order applies to this exact product. "
+                    "Confirm the product scope, intended user, latest edition and current QCO before acting.\n\n"
+                    f"**Relevant retrieved passages:**\n\n"
                     f"{body_evidence}\n\n"
-                    f"*(Extracted directly from verified BIS statutory schedules and test standards.)*"
+                    f"**Source links available in the retrieved records:**\n{source_text}\n\n"
+                    "If these passages do not establish applicability, check the current BIS Scheme-I list and Know Your Standard portal. "
+                    "Do not treat this summary as a final certification or compliance decision."
                 )
                 return LLMGenerationResult(
                     text=synthesized_text,
