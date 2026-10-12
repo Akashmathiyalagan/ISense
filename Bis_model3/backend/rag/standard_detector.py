@@ -80,13 +80,13 @@ KNOWN_BIS_STANDARDS_CATALOG: List[Dict[str, Any]] = [
         ]
     },
     {
-        "keywords": ["toy", "children toy", "educational toy", "plastic toy", "wooden toy", "rc car", "remote control car", "remote control toy", "rc toy", "electric toy"],
-        "standard_code": "IS 9873 (Part 1) : 2019",
-        "standard_title": "Safety of Toys — Mechanical and Physical Properties",
+        "keywords": ["children toy", "toy for children", "toy intended for children", "educational toy", "plastic toy", "wooden toy", "electric toy", "non-electric toy"],
+        "standard_code": "IS 9873 (Part 1) : 2018",
+        "standard_title": "Safety of Toys Part 1: Safety Aspects Related to Mechanical and Physical Properties",
         "category": "Consumer Goods & Toys",
-        "scheme": "DPIIT Toys (Quality Control) Order / ISI Mark Scheme",
+        "scheme": "Toys Quality Control Order / ISI Mark Scheme; scope and current edition must be checked for the exact product",
         "division": "Consumer Products Division (CPD 24)",
-        "scope_summary": "Small parts choking cylinder, sharp edge/point elimination, and heavy metal chemical migration restrictions.",
+        "scope_summary": "Candidate only for products that fall within the applicable toy definition and scope. The current BIS Scheme-I listing shows IS 9873 (Part 1):2018; BIS has also published IS 9873 (Part 1):2025 and extended its implementation date to 22 March 2027. Check current QCO scope and adult-collector-model exclusions before assigning this standard.",
         "checklist": [
             "Mechanical Abuse & Small Parts Test Report",
             "Toxic Elements Migration Analysis (IS 9873 Part 3)",
@@ -239,6 +239,42 @@ def detect_bis_standard(product_name: str, category: str = "") -> Dict[str, Any]
             "is_verified": False,
             "confidence": 0.90,
             "match_type": "exact_code_query"
+        }
+
+    # Avoid auto-classifying adult hobby/collector RC vehicles as children's toys.
+    # Do not infer toy-QCO applicability from the phrase "RC car" alone.
+    rc_vehicle_terms = ("rc car", "remote control car", "remote-controlled car", "rc vehicle", "model car")
+    adult_model_terms = (
+        "age 14+", "age 14 +", "14+ / hobby", "age 14 and over",
+        "hobby use", "adult hobby", "adult collector", "scale model",
+        "model / hobby vehicle", "model/hobby vehicle", "adult model",
+    )
+    if any(term in query_lower for term in rc_vehicle_terms) and any(term in query_lower for term in adult_model_terms):
+        return {
+            "standard_code": "No Verified Standard Identified",
+            "standard_title": "RC / hobby vehicle — scope confirmation required",
+            "category": "RC / Model Vehicles",
+            "scheme": "Toy QCO applicability not established from the available product description",
+            "division": "Bureau of Indian Standards",
+            "scope_summary": (
+                "The user's answers describe an adult hobby/model vehicle. Do not automatically assign children's-toy standards. "
+                "Determine whether it is genuinely an adult collector's scale model, a product intended for children, or another regulated product. "
+                "Confirm the current QCO and standard scope from official BIS sources before identifying a mandatory IS number."
+            ),
+            "checklist": [
+                "Product datasheet and intended market/age group",
+                "Official BIS scope confirmation for the specific RC/model vehicle",
+                "Current QCO and applicable edition check"
+            ],
+            "keywords": list(rc_vehicle_terms),
+            "is_verified": False,
+            "confidence": 0.0,
+            "match_type": "scope_confirmation_required",
+            "is_supported": False,
+            "suggested_questions": [
+                "Is this model marketed and designed exclusively for adult collectors, or is it sold/intended as a children's toy?",
+                "What voltage, battery type and radio-control functions are included?"
+            ]
         }
 
     # 2. Check for ambiguous descriptions (e.g., 'charger' could be mobile charger IS 13252 or EV charger IS 17017)
