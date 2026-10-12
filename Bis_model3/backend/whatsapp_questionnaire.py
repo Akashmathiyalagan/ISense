@@ -46,6 +46,26 @@ QUESTION_SETS: Dict[str, List[Dict[str, Any]]] = {
 }
 
 
+def _default_list_title(question_key: str) -> str:
+    """Return a concise title for the WhatsApp list picker (maximum 20 chars)."""
+    titles = {
+        "material": "Choose material",
+        "capacity": "Choose capacity",
+        "insulation": "Insulation",
+        "insulation_type": "Insulation design",
+        "business_activity": "Your activity",
+        "origin": "Product origin",
+        "help_needed": "BIS guidance",
+        "bag_type": "Bag type",
+        "intended_user": "Intended user",
+        "vehicle_type": "Vehicle type",
+        "power_source": "Power source",
+        "intended_age": "Age group",
+        "product_type": "Product type",
+    }
+    return titles.get(question_key, "Choose answer")
+
+
 def classify_product(product_name: str) -> str:
     """Map common product descriptions to predefined product question sets."""
     text = " ".join((product_name or "").lower().split())
@@ -152,7 +172,7 @@ class WhatsAppProductQuestionnaire:
                     "message": "Product questions cancelled. You can send a product name whenever you want to try again.",
                 }
 
-            questions = QUESTION_SETS.get(session.get("category", "general"), QUESTION_SETS["general"])
+            questions = _questions_for_session(session)
             index = int(session.get("index", 0))
             if index >= len(questions):
                 self._sessions.pop(sender_id, None)
@@ -164,7 +184,10 @@ class WhatsAppProductQuestionnaire:
             session["answers"][question["key"]] = normalized[:160]
             session["index"] = index + 1
 
-            if session["index"] >= len(questions):
+            # Recalculate after the answer: a choice such as Insulated can add a
+            # follow-up question, so do not compare against the old question count.
+            next_questions = _questions_for_session(session)
+            if session["index"] >= len(next_questions):
                 completed = self._sessions.pop(sender_id)
                 self._save()
                 return {
@@ -174,7 +197,7 @@ class WhatsAppProductQuestionnaire:
                     "category": completed["category"],
                     "answers": completed["answers"],
                     "rag_query": self._to_rag_query(completed),
-                    "message": "Thanks. I have the product details. I’ll now check the indexed BIS sources for relevant guidance.",
+                    "message": "Thanks. I have the product details. I’ll now check official BIS references and the indexed knowledge base for relevant guidance.",
                 }
 
             self._save()
@@ -185,15 +208,19 @@ class WhatsAppProductQuestionnaire:
 
     def _current_question(self, sender_id: str, intro: bool) -> Dict[str, Any]:
         session = self._sessions[sender_id]
-        questions = QUESTION_SETS[session["category"]]
+        questions = _questions_for_session(session)
         idx = int(session["index"])
         q = questions[idx]
         lead = f"Let's collect a few details about *{session['product_name']}*." if intro else f"Recorded: *{session['answers'][questions[idx - 1]['key']]}*."
+        # The list-opening button is the chooser title; keep it short and
+        # question-specific so the user sees the question while selecting.
+        list_title = q.get("list_title") or _default_list_title(q["key"])
         return {
             "handled": True,
             "complete": False,
             "message": f"{lead}\n\n*Question {idx + 1} of {len(questions)}*\n{q['prompt']}\n\nYou can type an answer instead, or reply *cancel* to stop.",
             "question": q["prompt"],
+            "list_title": list_title[:20],
             "question_number": idx + 1,
             "total_questions": len(questions),
             "options": list(q["choices"]),
@@ -201,6 +228,7 @@ class WhatsAppProductQuestionnaire:
 
     @staticmethod
     def _to_rag_query(session: Dict[str, Any]) -> str:
+        questions = _questions_for_session(session)
         questions = QUESTION_SETS.get(session.get("category", "general"), QUESTION_SETS["general"])
         labels = {q["key"]: q["key"].replace("_", " ").title() for q in questions}
         lines = [
