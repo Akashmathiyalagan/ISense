@@ -4,7 +4,7 @@
 
 ISense is a Smart India Hackathon (SIH) project exploring how AI and Retrieval-Augmented Generation (RAG) can make Bureau of Indian Standards (BIS) information easier to discover and understand. It is designed to help users investigate potentially relevant Indian Standards, certification procedures, testing requirements, and related compliance guidance through a conversational interface.
 
-> **Project status:** ISense is a prototype. The RAG backend and web application are under development. WhatsApp Cloud API messaging is integrated in the development environment, but publication of the dynamic WhatsApp Flow is currently blocked by a Meta integrity restriction. The complete Flow journey has not yet been verified end to end.
+> **SIH prototype status:** The web application and RAG backend are under development. A conversational WhatsApp product questionnaire using interactive list messages is now implemented in the repository, but it still needs local test execution and live WhatsApp end-to-end verification. Native WhatsApp Flow publication remains blocked by a Meta integrity restriction; the conversational questionnaire does not require native Flow publication.
 
 ## Problem
 
@@ -30,8 +30,8 @@ ISense is an independent assistance prototype, not an official BIS government se
 - **Standards-aware assistance:** Detects and handles references to Indian Standard numbers.
 - **Source-oriented answers:** Carries document, clause, page, and source metadata through the retrieval pipeline where available.
 - **Web application:** Provides the main user interface for interacting with the project.
-- **WhatsApp integration:** Webhook and message-handling integration is present in the development project.
-- **Dynamic WhatsApp Flow:** Product-specific interactive collection is in progress; publishing and live encrypted data exchange remain unverified.
+- **Conversational WhatsApp questionnaire:** Asks product-specific questions one at a time using interactive WhatsApp lists, stores progress by sender, supports cancellation, and passes completed product details to the RAG assistant. Live WhatsApp delivery and the full flow still need testing.
+- **Native WhatsApp Flow:** A separate form-based implementation exists, but publishing is currently blocked by Meta's integrity check and is not required for the conversational questionnaire.
 
 ## Technology Stack
 
@@ -83,15 +83,13 @@ ISense/
     └── backend/
         ├── main.py
         ├── rag_engine.py
+        ├── whatsapp_service.py
+        ├── whatsapp_questionnaire.py
+        ├── whatsapp_flow_endpoint.py
         ├── rag/
-        │   ├── engine.py
-        │   ├── index.py
-        │   ├── ingestion.py
-        │   ├── models.py
-        │   ├── llm_provider.py
-        │   └── standard_detector.py
         ├── storage/
         ├── tests/
+        │   └── test_whatsapp_questionnaire.py
         └── requirements.txt
 ~~~
 
@@ -172,11 +170,15 @@ Do not claim that a product is certified or compliant without appropriate eviden
 - [x] Implement an initial RAG pipeline with hybrid retrieval
 - [x] Add BIS standard detection and regulatory-document metadata
 - [x] Add WhatsApp webhook/message integration in the development project
-- [x] Validate custom WhatsApp Flow JSON with Meta
+- [x] Implement conversational product questionnaire logic with product-specific question sets
+- [x] Add WhatsApp interactive-list sending method and webhook routing
+- [x] Add unit tests for questionnaire classification, state progression, persistence, and cancellation
+- [x] Validate custom native WhatsApp Flow JSON with Meta
+- [ ] Run questionnaire tests in the project environment and verify live WhatsApp replies
 - [ ] Improve product-aware query routing and hierarchical retrieval
 - [ ] Add and evaluate a reranking stage
-- [ ] Resolve the Meta Flow publishing restriction
-- [ ] Verify encrypted WhatsApp Flow exchange and complete form submission
+- [ ] Resolve the separate native Flow publishing restriction
+- [ ] Verify native Flow encrypted exchange if the native Flow is pursued
 - [ ] Evaluate retrieval quality, citation correctness, and insufficient-evidence handling
 - [ ] Document deployment and operational testing results
 
