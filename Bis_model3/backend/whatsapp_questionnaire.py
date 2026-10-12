@@ -174,7 +174,7 @@ class WhatsAppProductQuestionnaire:
     @staticmethod
     def _to_rag_query(session: Dict[str, Any]) -> str:
         questions = QUESTION_SETS.get(session.get("category", "general"), QUESTION_SETS["general"])
-        labels = {q["key"]: q["prompt"].rstrip("?") for q in questions}
+        labels = {q["key"]: q["key"].replace("_", " ").title() for q in questions}
         lines = [
             "The user is seeking BIS guidance. The following are user-provided product details, not regulatory evidence.",
             f"Product name: {session.get('product_name', 'unspecified')}",
