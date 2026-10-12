@@ -75,7 +75,9 @@ def test_arbitrary_product_uses_generated_product_specific_questions(tmp_path):
     assert "Product name: industrial latex examination gloves" in result["rag_query"]
     assert "Powder-free" in result["rag_query"]
     assert "Latex, non-sterile, 0.1 mm thickness" in result["rag_query"]
-    assert "not regulatory evidence" in result["rag_query"]
+    assert "Product details supplied by the user" in result["rag_query"]
+    assert "Use only retrieved official BIS" not in result["rag_query"]
+    assert "After retrieval, answer in this order" not in result["rag_query"]
 
 
 def test_fallback_questionnaire_handles_water_bottle_and_finishes(tmp_path):
@@ -94,7 +96,9 @@ def test_fallback_questionnaire_handles_water_bottle_and_finishes(tmp_path):
     assert result["complete"] is True
     assert result["category"] == "water_bottle"
     assert "Product name: water bottle" in result["rag_query"]
-    assert "not regulatory evidence" in result["rag_query"]
+    assert "Product details supplied by the user" in result["rag_query"]
+    assert "Use only retrieved official BIS" not in result["rag_query"]
+    assert "After retrieval, answer in this order" not in result["rag_query"]
     assert bot.has_session("user-2") is False
 
 
