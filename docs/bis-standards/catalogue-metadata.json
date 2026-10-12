@@ -1,0 +1,11 @@
+{
+  "source": "https://standards.bis.gov.in/website/know-your-standards",
+  "published_standards_page": "https://standards.bis.gov.in/website/published-standards/published-standards-list?selectedType=7&totalRow=1",
+  "api_endpoint": "https://standardsadmin.bis.gov.in/proposal-service/getWebsiteIndianStandardsList",
+  "retrieved_at_utc": "2026-10-12 16:55:53",
+  "api_reported_total_rows": 23979,
+  "raw_rows_fetched": 23979,
+  "pages_requested": 240,
+  "unique_is_number_records": 23889,
+  "note": "Catalogue metadata only. This index does not include the full text of Indian Standards and does not determine whether any edition is current, compulsory, withdrawn, or applicable to a particular product. Check the individual official BIS record and current orders."
+}
