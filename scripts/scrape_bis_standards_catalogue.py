@@ -34,6 +34,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
 
 
+# Public paginated catalogue API called by the BIS Standards Portal.
 API_URL = "https://standardsadmin.bis.gov.in/proposal-service/getWebsiteIndianStandardsList"
 PORTAL_URL = "https://standards.bis.gov.in/website/know-your-standards"
 PUBLISHED_URL = (
