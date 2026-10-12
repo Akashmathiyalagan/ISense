@@ -1525,8 +1525,8 @@ async def handle_whatsapp_webhook(
                                 recipient_wa_id=from_number,
                                 message_text=q_result.get("message", "Choose an option."),
                                 options=q_result.get("options", []),
-                                button_title="Choose answer",
-                                section_title="Options",
+                                button_title=q_result.get("list_title", "Choose answer"),
+                                section_title="Choices",
                             )
                             if not list_result.get("success"):
                                 fallback = q_result.get("message", "Please reply with one of these options.")
