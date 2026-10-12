@@ -31,6 +31,7 @@ from whatsapp_service import (
     whatsapp_client,
     format_whatsapp_message,
 )
+from whatsapp_questionnaire import product_questionnaire
 
 # Security and password hashing utilities
 SALT = "isense_sec_salt_2025"
@@ -1437,14 +1438,7 @@ async def handle_whatsapp_webhook(
                         msg_type = "text"
                         logger.info("Received ISense product-intake Flow submission from %s", from_number[-4:])
 
-                    # Launch the published in-WhatsApp product questionnaire for product-only messages.
-                    if (msg_type == "text" and text_body and config.is_configured()
-                            and config.flow_id and should_open_product_intake_flow(text_body)):
-                        flow_result = await whatsapp_client.send_product_intake_flow(from_number, text_body)
-                        if flow_result.get("success"):
-                            logger.info("Sent ISense product-intake Flow to sender ending %s", from_number[-4:])
-                            return {"status": "success", "event": "product_intake_flow_sent"}
-                        logger.warning("Product-intake Flow unavailable; falling back to conversational assistant: %s", flow_result.get("error", "unknown"))
+                    # Product intake is handled as a conversational questionnaire below; it does not require Flow publishing.
 
                     # Handle unsupported media/events
                     if text_body is None and msg_type != "text":
@@ -1469,6 +1463,85 @@ async def handle_whatsapp_webhook(
 
                     if not text_body:
                         continue
+
+                    # Option 1: conversational product intake through WhatsApp buttons/lists.
+                    # Unlike native WhatsApp Flows, this path works without Flow publication.
+                    active_questionnaire = product_questionnaire.has_session(from_number)
+                    starts_questionnaire = (
+                        msg_type == "text"
+                        and should_open_product_intake_flow(text_body)
+                        and not active_questionnaire
+                    )
+                    if config.is_configured() and (active_questionnaire or starts_questionnaire):
+                        q_result = (
+                            product_questionnaire.handle_reply(from_number, text_body)
+                            if active_questionnaire
+                            else product_questionnaire.start(from_number, text_body)
+                        )
+
+                        if q_result.get("handled"):
+                            if q_result.get("cancelled"):
+                                await whatsapp_client.send_raw_text(
+                                    from_number,
+                                    q_result.get("message", "Product questions cancelled.")
+                                )
+                                return {"status": "success", "event": "product_questionnaire_cancelled"}
+
+                            if q_result.get("complete"):
+                                await whatsapp_client.send_raw_text(from_number, q_result.get("message", "Thanks. Checking BIS sources now."))
+                                try:
+                                    conversational_assistant.rag_engine = rag_engine
+                                    rag_result = conversational_assistant.process_turn(
+                                        conversation_id=from_number,
+                                        message=q_result["rag_query"],
+                                        channel="whatsapp"
+                                    )
+                                except Exception as conv_err:
+                                    logger.error("Conversational questionnaire RAG failed: %s", type(conv_err).__name__)
+                                    rag_result = {
+                                        "content": (
+                                            "I collected your product details, but could not retrieve a reliable answer right now. "
+                                            "Please check current official information at https://www.bis.gov.in"
+                                        ),
+                                        "sources": [],
+                                        "confidence": 0.0,
+                                        "insufficient_evidence": True,
+                                        "warnings": ["RAG processing failed after product questionnaire."],
+                                    }
+
+                                await whatsapp_client.send_rag_response(
+                                    recipient_wa_id=from_number,
+                                    rag_content=rag_result.get("content", ""),
+                                    sources=rag_result.get("sources", []),
+                                    insufficient_evidence=rag_result.get("insufficient_evidence", False),
+                                )
+                                return {
+                                    "status": "success",
+                                    "event": "product_questionnaire_completed",
+                                    "category": q_result.get("category"),
+                                }
+
+                            list_result = await whatsapp_client.send_interactive_list(
+                                recipient_wa_id=from_number,
+                                message_text=q_result.get("message", "Choose an option."),
+                                options=q_result.get("options", []),
+                                button_title="Choose answer",
+                                section_title="Options",
+                            )
+                            if not list_result.get("success"):
+                                fallback = q_result.get("message", "Please reply with one of these options.")
+                                fallback += "\n\n" + "\n".join(
+                                    f"{idx + 1}. {option}"
+                                    for idx, option in enumerate(q_result.get("options", []))
+                                )
+                                await whatsapp_client.send_raw_text(from_number, fallback)
+
+                            return {
+                                "status": "success",
+                                "event": "product_questionnaire_step",
+                                "question": q_result.get("question_number"),
+                                "total_questions": q_result.get("total_questions"),
+                            }
 
                     # 5. Routing: Unified Multi-Turn Conversational Assistant for WhatsApp
                     logger.info(f"Routing WhatsApp inquiry from {from_number} to conversational engine: '{text_body[:50]}'...")
