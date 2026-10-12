@@ -1,267 +1,189 @@
-# ISense — BIS Certification Assistance Platform
+# ISense — SIH 2026 Project
 
-**An AI-powered assistant for navigating Bureau of Indian Standards (BIS) requirements.**
+**An AI-assisted BIS standards and certification guidance platform.**
 
-ISense is a Retrieval-Augmented Generation (RAG) based assistance platform designed to help manufacturers, entrepreneurs, importers, and businesses understand BIS standards, product certification requirements, testing procedures, and compliance-related information.
+ISense is a Smart India Hackathon (SIH) project exploring how AI and Retrieval-Augmented Generation (RAG) can make Bureau of Indian Standards (BIS) information easier to discover and understand. It is designed to help users investigate potentially relevant Indian Standards, certification procedures, testing requirements, and related compliance guidance through a conversational interface.
 
-The platform combines AI-powered question answering with a knowledge base of relevant regulatory documents. It also integrates WhatsApp to make BIS-related guidance more accessible through conversational interactions.
+> **Project status:** ISense is a prototype. The RAG backend and web application are under development. WhatsApp Cloud API messaging is integrated in the development environment, but publication of the dynamic WhatsApp Flow is currently blocked by a Meta integrity restriction. The complete Flow journey has not yet been verified end to end.
 
-> **Development status:** The WhatsApp Cloud API integration and dynamic Flow are under development. Meta has accepted the custom Flow JSON, but publishing is currently blocked by a Meta integrity restriction. End-to-end dynamic Flow behaviour has not yet been confirmed.
+## Problem
 
-## Problem Statement
+Finding and interpreting BIS-related information can be difficult for small manufacturers, entrepreneurs, importers, and first-time applicants. Users may not know which product details matter, which standard to investigate, or where to find applicable official guidance.
 
-Understanding BIS standards and product certification requirements can be challenging, especially for small businesses, manufacturers, and first-time applicants. Users may struggle to identify applicable standards, understand certification procedures, and locate relevant regulatory information.
+## Proposed SIH Solution
 
-ISense aims to simplify this process by providing a conversational interface that helps users explore relevant BIS requirements and find information from available source documents.
+ISense aims to provide a guided interface that:
 
-## Solution
+1. Collects a user's question and, when relevant, product details.
+2. Retrieves related passages from the regulatory documents indexed by the project.
+3. Generates an answer grounded in retrieved evidence.
+4. Presents available source information so users can investigate the original material.
+5. Supports access through a web interface, with WhatsApp interaction being developed.
 
-ISense uses Retrieval-Augmented Generation to retrieve relevant information from its knowledge base and generate context-grounded responses to user questions.
+ISense is an independent assistance prototype, not an official BIS government service. It does not grant certification, issue licences, or guarantee that a product complies with a standard.
 
-The platform is designed to support:
+## Main Features
 
-- BIS-related question answering.
-- Retrieval of relevant regulatory information from indexed documents.
-- Product-specific information collection.
-- Conversational assistance through WhatsApp.
-- Guided exploration of certification, standards, and testing requirements.
-
-## Key Features
-
-### AI-Powered BIS Assistance
-
-Users can ask questions about BIS standards, certification processes, and product compliance through a conversational interface.
-
-### Retrieval-Augmented Generation (RAG)
-
-The system retrieves relevant information from its knowledge base before generating responses, helping ground answers in available documentation.
-
-### Product-Specific Assistance
-
-The system is designed to collect product details such as category, material, intended use, and other relevant characteristics to help identify potentially applicable requirements.
-
-### WhatsApp Integration
-
-The WhatsApp Cloud API integration connects users to the ISense assistant through conversational messaging.
-
-### Dynamic WhatsApp Flows
-
-A custom WhatsApp Flow implementation is being developed to collect product-specific information through interactive forms. Publication and live end-to-end testing remain pending.
-
-### FastAPI Backend
-
-A Python-based backend provides API endpoints for assistant interactions, WhatsApp webhooks, and Flow data exchange.
+- **RAG-based question answering:** Uses retrieved regulatory passages to ground responses.
+- **Hybrid retrieval:** Combines dense semantic search, BM25 keyword search, exact BIS standard-number matching, and a TF-IDF fallback.
+- **Regulatory document ingestion:** Extracts text and metadata from supported files and divides documents into searchable chunks.
+- **Standards-aware assistance:** Detects and handles references to Indian Standard numbers.
+- **Source-oriented answers:** Carries document, clause, page, and source metadata through the retrieval pipeline where available.
+- **Web application:** Provides the main user interface for interacting with the project.
+- **WhatsApp integration:** Webhook and message-handling integration is present in the development project.
+- **Dynamic WhatsApp Flow:** Product-specific interactive collection is in progress; publishing and live encrypted data exchange remain unverified.
 
 ## Technology Stack
 
-| Technology | Purpose |
+| Technology | Role |
 |---|---|
-| Python | Backend development and AI integration |
-| FastAPI | REST API and webhook handling |
-| Retrieval-Augmented Generation (RAG) | Grounded question answering |
-| Google Gemini integration | Language model generation |
-| WhatsApp Cloud API | WhatsApp messaging integration |
-| WhatsApp Flows | Interactive product information collection |
-| Ngrok | HTTPS tunnelling during local development |
-| Pytest | Automated testing |
+| Python | Backend and RAG logic |
+| FastAPI | API endpoints and webhook handling |
+| React, Vite | Web application frontend |
+| Sentence Transformers (all-MiniLM-L6-v2) | Dense semantic retrieval when available |
+| BM25 | Lexical retrieval |
+| scikit-learn TF-IDF | Retrieval fallback |
+| Google Gemini integration | Language-model responses when configured |
+| Meta WhatsApp Cloud API | WhatsApp messaging integration |
+| Pytest | Automated tests |
+| Docker / Docker Compose | Optional local containerized setup |
 
-## System Architecture
+The actual capabilities available depend on the configured environment, indexed documents, and successfully connected services.
 
-```mermaid
+## Architecture
+
+~~~mermaid
 flowchart TD
-    A[User] --> B[ISense Website or WhatsApp]
-    B --> C[FastAPI Backend]
-    C --> D[Conversational Assistant]
-    D --> E[RAG Retrieval Engine]
-    E --> F[BIS Knowledge Base]
-    F --> E
-    E --> G[Grounded Response]
-    G --> C
-    C --> B
-    B --> A
-    C <--> H[WhatsApp Cloud API]
-    H <--> I[WhatsApp Flow]
-    I <--> C
-```
+    U[User] --> UI[ISense Web Interface]
+    U --> WA[WhatsApp integration in progress]
+    UI --> API[FastAPI Backend]
+    WA --> API
+    API --> Q[Query and standard detection]
+    Q --> R[Hybrid retrieval]
+    R --> KB[Indexed BIS-related documents]
+    KB --> R
+    R --> G[Grounded answer generation]
+    G --> C[Answer and available source metadata]
+    C --> UI
+    C --> WA
+~~~
 
-## Project Structure
+## Repository Structure
 
-The following is a simplified representation; exact paths may vary by project version.
-
-```text
+~~~text
 ISense/
-├── backend/
-│   ├── main.py
-│   ├── whatsapp_service.py
-│   ├── whatsapp_flow_endpoint.py
-│   ├── generate_flow_keys.py
-│   ├── rag/
-│   │   └── llm_provider.py
-│   ├── whatsapp_flows/
-│   │   └── isense_dynamic_product_flow.json
-│   ├── tests/
-│   │   ├── test_dynamic_flow_endpoint.py
-│   │   └── test_whatsapp_flows.py
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── WHATSAPP_DYNAMIC_FLOW_SETUP.md
-└── README.md
-```
+├── README.md
+└── Bis_model3/
+    ├── README.md
+    ├── src/                  # Web frontend source
+    ├── public/               # Static web assets
+    ├── package.json
+    ├── Dockerfile
+    ├── docker-compose.yml
+    └── backend/
+        ├── main.py
+        ├── rag_engine.py
+        ├── rag/
+        │   ├── engine.py
+        │   ├── index.py
+        │   ├── ingestion.py
+        │   ├── models.py
+        │   ├── llm_provider.py
+        │   └── standard_detector.py
+        ├── storage/
+        ├── tests/
+        └── requirements.txt
+~~~
 
-Check the repository's actual filenames and adjust this illustrative tree if they differ.
+See [the application README](Bis_model3/README.md) for detailed development instructions.
 
-## Getting Started
+## Run Locally
 
 ### Prerequisites
 
-- Python version supported by the project's dependencies.
-- Git.
-- A Meta developer application with WhatsApp Cloud API access for WhatsApp integration.
-- Ngrok or another HTTPS tunnel for local webhook testing.
-- API credentials for the configured language model provider.
+- Python version compatible with the backend dependencies
+- Node.js and npm
+- Git
+- An API key for the configured LLM provider if using live generation
+- Meta WhatsApp Cloud API credentials only if testing WhatsApp integration
 
 ### 1. Clone the repository
 
-```bash
+~~~bash
 git clone https://github.com/Akashmathiyalagan/ISense.git
-cd ISense
-```
+cd ISense/Bis_model3
+~~~
 
-### 2. Navigate to the backend
+### 2. Start the frontend
 
-```bash
-cd backend
-```
+~~~bash
+npm install
+npm run dev
+~~~
 
-### 3. Create and activate a virtual environment
+Use the local URL printed by Vite in the terminal.
 
-**Windows PowerShell**
+### 3. Set up and start the backend
 
-```powershell
+In another terminal:
+
+~~~powershell
+cd ISense/Bis_model3/backend
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-### 4. Install dependencies
-
-```bash
+venv/Scripts/Activate.ps1
 python -m pip install -r requirements.txt
-```
+~~~
 
-### 5. Configure environment variables
+Create a local .env file based on the provided .env.example, then add the credentials required by the application. Do not commit secrets.
 
-Create a `.env` file using `.env.example` as a reference. Add the credentials required by the current backend configuration.
+Start FastAPI:
 
-Example variable names (use the exact names expected by your code):
+~~~powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+~~~
 
-```env
-GEMINI_API_KEY=your_gemini_api_key
+Open http://127.0.0.1:8000/docs for API documentation if the backend is running on port 8000. If that port is occupied, select another port and update related local configuration.
 
-WHATSAPP_ACCESS_TOKEN=your_meta_access_token
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WHATSAPP_VERIFY_TOKEN=your_webhook_verify_token
-WHATSAPP_APP_SECRET=your_meta_app_secret
+### 4. Run backend tests
 
-WHATSAPP_PRODUCT_INTAKE_FLOW_ID=your_published_flow_id
-WHATSAPP_FLOW_PRIVATE_KEY_PATH=path_to_your_private_key
-```
+From Bis_model3/backend, run the tests present in the checked-out version:
 
-These names are examples and must match the project's actual configuration. Do not commit your `.env` file, API keys, Meta access tokens, or private encryption keys to GitHub.
+~~~bash
+python -m pytest
+~~~
 
-### 6. Start the FastAPI server
+Test coverage and results may differ between local working copies and the files committed to GitHub.
 
-```bash
-python -m uvicorn main:app --host 127.0.0.1 --port 8001
-```
+## WhatsApp Development Status
 
-Open the interactive API documentation at:
+The WhatsApp integration is being developed separately from the core RAG workflow. Meta has accepted the custom Flow JSON without validation errors, but publishing has returned an integrity restriction. Until Meta clears that restriction and a live submission is tested, the dynamic WhatsApp Flow should be treated as **in progress**, not as a working production feature.
 
-```text
-http://127.0.0.1:8001/docs
-```
-
-### 7. Expose the backend for webhook testing
-
-In a separate terminal:
-
-```bash
-ngrok http 8001
-```
-
-Configure the HTTPS forwarding URL in the relevant Meta webhook or Flow endpoint settings. The tunnel URL may change when a new tunnel session starts.
-
-### 8. Run automated tests
-
-From the backend directory:
-
-```bash
-python -m pytest tests/test_dynamic_flow_endpoint.py tests/test_whatsapp_flows.py -q
-```
-
-The current development tests passed in the developer's local environment (6 passed, 1 deprecation warning). Passing automated tests does not replace live integration testing with Meta.
-
-## WhatsApp Integration
-
-The intended workflow is:
-
-1. A user sends a product name or BIS-related question.
-2. The backend identifies whether additional product information is needed.
-3. For supported product-intake scenarios, the assistant offers an interactive WhatsApp Flow.
-4. The user submits product details.
-5. The backend processes the submitted information.
-6. The assistant uses the RAG system to generate relevant BIS guidance.
-
-The dynamic Flow requires a correctly configured HTTPS endpoint, encryption keys, a valid Flow definition, and a published Flow ID. Complete these steps and verify the interaction before treating the feature as operational.
-
-## Testing and Validation
-
-The development workflow includes:
-
-- Python syntax checks.
-- JSON syntax validation.
-- Automated endpoint and routing tests.
-- Encryption/decryption round-trip tests.
-- Meta Flow JSON validation.
-- Planned live testing of WhatsApp Flow submission and RAG responses.
+Development testing may use an HTTPS tunnel such as ngrok. Tunnel URLs can change and should not be treated as permanent production endpoints.
 
 ## Responsible Use
 
-ISense is intended to assist users in navigating BIS-related information. Its responses should not be treated as a substitute for official regulatory decisions.
+ISense is intended to help users find and understand information. It is not an official BIS portal and should not be treated as a final legal or certification decision. Users must verify applicable requirements against current official BIS publications and relevant government sources. Product scope, applicable standards, compulsory certification requirements, and exemptions depend on the specific product and applicable rules.
 
-Users should verify applicable requirements against current official BIS publications and relevant government sources. Product classification, applicable standards, compulsory certification requirements, and exemptions may depend on the exact product and its intended use.
+Do not claim that a product is certified or compliant without appropriate evidence.
 
-Do not present a product as certified or compliant without appropriate evidence.
+## SIH Development Roadmap
 
-## Roadmap
+- [x] Establish FastAPI backend and web application structure
+- [x] Implement an initial RAG pipeline with hybrid retrieval
+- [x] Add BIS standard detection and regulatory-document metadata
+- [x] Add WhatsApp webhook/message integration in the development project
+- [x] Validate custom WhatsApp Flow JSON with Meta
+- [ ] Improve product-aware query routing and hierarchical retrieval
+- [ ] Add and evaluate a reranking stage
+- [ ] Resolve the Meta Flow publishing restriction
+- [ ] Verify encrypted WhatsApp Flow exchange and complete form submission
+- [ ] Evaluate retrieval quality, citation correctness, and insufficient-evidence handling
+- [ ] Document deployment and operational testing results
 
-- [x] FastAPI backend foundation
-- [x] RAG-based assistant integration
-- [x] WhatsApp webhook integration
-- [x] Initial dynamic Flow endpoint and routing tests
-- [x] Custom Flow JSON validation by Meta
-- [ ] Resolve Meta Flow publishing restriction
-- [ ] Complete live encrypted Flow data-exchange testing
-- [ ] Verify end-to-end WhatsApp form submission
-- [ ] Improve product-specific question coverage
-- [ ] Validate responses against current official BIS sources
-- [ ] Production deployment and monitoring
+## SIH Information
 
-## Contributing
-
-Suggestions, issue reports, and contributions are welcome.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes.
-4. Run relevant tests.
-5. Submit a pull request describing your changes.
+This repository contains the ISense prototype prepared for Smart India Hackathon (SIH). Add your official SIH problem-statement ID, team name, institution, and member details here if required by your submission.
 
 ## License
 
-Add an appropriate open-source license before distributing this project. Without a license, others do not automatically receive permission to reuse, modify, or redistribute the code.
-
-## Acknowledgements
-
-- Bureau of Indian Standards (BIS) for official standards and regulatory information.
-- Meta WhatsApp Cloud API for messaging and Flow integration.
-- The open-source Python ecosystem for backend and testing tools.
+No license is specified by this README. Add a license only when your team has decided how the project may be reused and distributed.
