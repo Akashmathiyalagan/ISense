@@ -8,7 +8,8 @@ import json
 import os
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+from rag.product_questionnaire import build_questionnaire
 
 
 QUESTION_SETS: Dict[str, List[Dict[str, Any]]] = {
@@ -66,8 +67,99 @@ def _default_list_title(question_key: str) -> str:
     return titles.get(question_key, "Choose answer")
 
 
+def _short_picker_title(field_id: str, label: str) -> str:
+    """Build a readable WhatsApp list-opening title (Meta limit: 20 chars)."""
+    known = {
+        "material": "Material?",
+        "capacity": "Capacity?",
+        "insulation": "Insulation?",
+        "intended_use": "Intended use?",
+        "origin": "Made where?",
+        "business_activity": "Your activity?",
+        "help_needed": "BIS help needed?",
+        "product_type": "Product type?",
+        "vehicle_type": "Vehicle type?",
+        "power_source": "Power source?",
+        "intended_user": "Intended user?",
+        "intended_age": "Age group?",
+        "bag_type": "Bag type?",
+        "features": "Features?",
+        "specifications": "Ratings / size?",
+    }
+    if field_id in known:
+        return known[field_id]
+    cleaned = " ".join((label or "").replace("?", "").split())
+    for prefix in ("What is ", "What type of ", "Which ", "Who is ", "Where is ", "How is ", "What ", "Does it ", "Is it "):
+        if cleaned.casefold().startswith(prefix.casefold()):
+            cleaned = cleaned[len(prefix):]
+            break
+    cleaned = cleaned.strip().capitalize()
+    return (cleaned[:19] + "?")[:20] if cleaned else "Choose answer"
+
+
+def _questions_from_schema(product_name: str, llm_provider: Any = None) -> List[Dict[str, Any]]:
+    """Use Gemini-generated product-specific fields; sanitize them for WhatsApp list/text UX."""
+    schema = build_questionnaire(product_name, llm_provider)
+    result: List[Dict[str, Any]] = []
+    for field in schema.get("fields", [])[:8]:
+        if not isinstance(field, dict):
+            continue
+        field_id = str(field.get("id") or "").strip()[:40]
+        label = str(field.get("label") or "").strip()[:180]
+        field_type = str(field.get("type") or "text").lower()
+        options = field.get("options", [])
+        if not field_id or not label:
+            continue
+        if field_type in {"radio", "checkbox"} and isinstance(options, list):
+            choices = [str(item).strip()[:100] for item in options if str(item).strip()][:10]
+            if len(choices) < 2:
+                field_type = "text"
+                choices = []
+        else:
+            field_type = "text"
+            choices = []
+        result.append({
+            "key": field_id,
+            "prompt": label,
+            "list_title": _short_picker_title(field_id, label),
+            "choices": choices,
+            "input_type": field_type,
+            "help_text": str(field.get("helpText") or "")[:240],
+        })
+    if len(result) < 2:
+        # build_questionnaire itself has a validated fallback; this is a last
+        # safety net against malformed or unexpectedly empty schemas.
+        result = [
+            {
+                "key": "product_type",
+                "prompt": "What exact product type, model or variant is this?",
+                "list_title": "Product type?",
+                "choices": [],
+                "input_type": "text",
+                "help_text": "Include model, size, rating, or construction if known.",
+            },
+            {
+                "key": "intended_use",
+                "prompt": "What is the intended use and user group?",
+                "list_title": "Intended use?",
+                "choices": ["Household / consumer", "Children / toy", "Commercial / industrial", "Professional / medical", "Other / not sure"],
+                "input_type": "radio",
+                "help_text": "",
+            },
+            {
+                "key": "business_activity",
+                "prompt": "What is your role?",
+                "list_title": "Your role?",
+                "choices": ["Personal use", "Manufacturer", "Importer", "Seller / distributor", "Other / not sure"],
+                "input_type": "radio",
+                "help_text": "",
+            },
+        ]
+    return result
+
+
 def classify_product(product_name: str) -> str:
-    """Map common product descriptions to predefined product question sets."""
+    """Retain broad category labels for logging and legacy integrations."""
     text = " ".join((product_name or "").lower().split())
     if any(term in text for term in ("water bottle", "bottle", "flask", "thermos", "tumbler")):
         return "water_bottle"
@@ -79,31 +171,12 @@ def classify_product(product_name: str) -> str:
 
 
 def _questions_for_session(session: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Return product questions, adding follow-ups when a prior answer requires them."""
-    category = session.get("category", "general")
-    questions = list(QUESTION_SETS.get(category, QUESTION_SETS["general"]))
-
-    # Insulated steel bottles need a construction check before choosing between
-    # the vacuum-flask standard and the broader potable metallic bottle standard.
-    if (
-        category == "water_bottle"
-        and session.get("answers", {}).get("insulation", "").casefold() == "insulated"
-    ):
-        insulation_index = next(
-            (i for i, question in enumerate(questions) if question["key"] == "insulation"),
-            None,
-        )
-        if insulation_index is not None:
-            questions.insert(
-                insulation_index + 1,
-                {
-                    "key": "insulation_type",
-                    "prompt": "Does it use vacuum insulation to keep drinks hot or cold?",
-                    "list_title": "Insulation design",
-                    "choices": ["Vacuum insulated", "Non-vacuum insulated", "Not sure"],
-                },
-            )
-    return questions
+    """Return the validated, per-product questionnaire saved for this session."""
+    stored = session.get("questions")
+    if isinstance(stored, list) and stored:
+        return stored
+    # Backward compatibility for sessions created before dynamic schemas were stored.
+    return list(QUESTION_SETS.get(session.get("category", "general"), QUESTION_SETS["general"]))
 
 
 class WhatsAppProductQuestionnaire:
@@ -140,14 +213,24 @@ class WhatsAppProductQuestionnaire:
         with self._lock:
             return sender_id in self._sessions
 
-    def start(self, sender_id: str, product_name: str) -> Dict[str, Any]:
+    def start(
+        self,
+        sender_id: str,
+        product_name: str,
+        llm_provider: Any = None,
+    ) -> Dict[str, Any]:
         name = " ".join((product_name or "").split())[:120] or "unspecified product"
         category = classify_product(name)
+        # The website and WhatsApp use the same validated Gemini questionnaire
+        # generator, so any product can receive tailored follow-up questions.
+        questions = _questions_from_schema(name, llm_provider)
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
                 "category": category,
                 "answers": {},
+                "questions": questions,
+                "questionnaire_source": "gemini_or_validated_fallback",
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -215,22 +298,29 @@ class WhatsAppProductQuestionnaire:
         # The list-opening button is the chooser title; keep it short and
         # question-specific so the user sees the question while selecting.
         list_title = q.get("list_title") or _default_list_title(q["key"])
+        type_note = f"\n{q['help_text']}" if q.get("help_text") else ""
+        if q.get("input_type") == "text" or not q.get("choices"):
+            response_mode = "text"
+            input_instruction = "Reply with your answer in a message."
+        else:
+            response_mode = "list"
+            input_instruction = "Tap the list below to choose an answer."
         return {
             "handled": True,
             "complete": False,
-            "message": f"{lead}\n\n*Question {idx + 1} of {len(questions)}*\n{q['prompt']}\n\nYou can type an answer instead, or reply *cancel* to stop.",
+            "message": f"{lead}\n\n*Question {idx + 1} of {len(questions)}*\n{q['prompt']}{type_note}\n\n{input_instruction} You can reply *cancel* to stop.",
             "question": q["prompt"],
             "list_title": list_title[:20],
+            "input_type": response_mode,
             "question_number": idx + 1,
             "total_questions": len(questions),
-            "options": list(q["choices"]),
+            "options": list(q.get("choices", [])),
         }
 
     @staticmethod
     def _to_rag_query(session: Dict[str, Any]) -> str:
         questions = _questions_for_session(session)
-        questions = QUESTION_SETS.get(session.get("category", "general"), QUESTION_SETS["general"])
-        labels = {q["key"]: q["key"].replace("_", " ").title() for q in questions}
+        labels = {q["key"]: q.get("prompt", q["key"].replace("_", " ").title()) for q in questions}
         lines = [
             "The user is seeking BIS guidance. The following are user-provided product details, not regulatory evidence.",
             f"Product name: {session.get('product_name', 'unspecified')}",
