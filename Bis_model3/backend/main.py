@@ -1476,7 +1476,11 @@ async def handle_whatsapp_webhook(
                         q_result = (
                             whatsapp_product_questionnaire.handle_reply(from_number, text_body)
                             if active_questionnaire
-                            else whatsapp_product_questionnaire.start(from_number, text_body)
+                            else whatsapp_product_questionnaire.start(
+                                from_number,
+                                text_body,
+                                llm_provider=getattr(rag_engine, "llm_provider", None),
+                            )
                         )
 
                         if q_result.get("handled"):
@@ -1521,20 +1525,27 @@ async def handle_whatsapp_webhook(
                                     "category": q_result.get("category"),
                                 }
 
-                            list_result = await whatsapp_client.send_interactive_list(
-                                recipient_wa_id=from_number,
-                                message_text=q_result.get("message", "Choose an option."),
-                                options=q_result.get("options", []),
-                                button_title=q_result.get("list_title", "Choose answer"),
-                                section_title="Choices",
-                            )
-                            if not list_result.get("success"):
-                                fallback = q_result.get("message", "Please reply with one of these options.")
-                                fallback += "\n\n" + "\n".join(
-                                    f"{idx + 1}. {option}"
-                                    for idx, option in enumerate(q_result.get("options", []))
+                            # Free-text fields should accept a typed answer; choice fields use lists.
+                            if q_result.get("input_type") == "text" or not q_result.get("options"):
+                                await whatsapp_client.send_raw_text(
+                                    from_number,
+                                    q_result.get("message", "Please type your answer.")
                                 )
-                                await whatsapp_client.send_raw_text(from_number, fallback)
+                            else:
+                                list_result = await whatsapp_client.send_interactive_list(
+                                    recipient_wa_id=from_number,
+                                    message_text=q_result.get("message", "Choose an option."),
+                                    options=q_result.get("options", []),
+                                    button_title=q_result.get("list_title", "Choose answer"),
+                                    section_title="Choices",
+                                )
+                                if not list_result.get("success"):
+                                    fallback = q_result.get("message", "Please reply with one of these options.")
+                                    fallback += "\n\n" + "\n".join(
+                                        f"{idx + 1}. {option}"
+                                        for idx, option in enumerate(q_result.get("options", []))
+                                    )
+                                    await whatsapp_client.send_raw_text(from_number, fallback)
 
                             return {
                                 "status": "success",
