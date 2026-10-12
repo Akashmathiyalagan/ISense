@@ -1,13 +1,29 @@
 import { apiClient } from './api';
 import { AIChatRequest, ChatMessageItem, SourceReferenceItem } from '../types/ai';
-import { mockInitialChatMessages } from '../data/mockData';
 import { detectProductStandard } from '../utils/bisMatcher';
 
-let activeChatHistory: ChatMessageItem[] = [...mockInitialChatMessages];
+export const createWelcomeMessage = (applicationId?: string): ChatMessageItem => ({
+  id: 'msg-welcome',
+  role: 'assistant',
+  content: applicationId
+    ? `👋 **Hello! I am your ISense AI Assistant.**\n\nI am connected to your application dossier for **${applicationId}**. Ask me about required documents, testing parameters, applicable Indian Standards, or certification procedures.`
+    : `👋 **Welcome to ISense — Your BIS Regulatory Assistant!**\n\nI provide verified compliance guidance for **Bureau of Indian Standards (BIS)** certifications, mandatory Indian Standards, laboratory testing protocols, and portal filings.\n\n💡 **How to ask me:**\n• *Product Inquiries*: e.g., "What standard applies to LED lamps?" or "Water bottle"\n• *Testing Requirements*: e.g., "Explain testing clauses for IS 16102"\n• *Application Documents*: e.g., "Documents required for ISI Mark certification"\n\nWhat product or Indian Standard would you like to explore?`,
+  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  sources: [],
+});
+
+let activeChatHistory: ChatMessageItem[] = [createWelcomeMessage()];
 
 export const aiApi = {
-  getChatHistory: async (): Promise<ChatMessageItem[]> => {
+  getChatHistory: async (applicationId?: string): Promise<ChatMessageItem[]> => {
+    if (activeChatHistory.length === 0) {
+      activeChatHistory = [createWelcomeMessage(applicationId)];
+    }
     return [...activeChatHistory];
+  },
+
+  recordUserMessage: (msg: ChatMessageItem) => {
+    activeChatHistory.push(msg);
   },
 
   sendMessage: async (payload: AIChatRequest): Promise<ChatMessageItem> => {
@@ -15,7 +31,8 @@ export const aiApi = {
       const response = await apiClient.post<ChatMessageItem>('/api/ai/chat', payload);
       activeChatHistory.push(response.data);
       return response.data;
-    } catch {
+    } catch (err) {
+      console.warn('Real-time RAG backend request failed, using local guidance fallback:', err);
       // Dynamic fallback referencing the configured BIS knowledge base
       const queryLower = payload.message.toLowerCase();
       const detected = detectProductStandard(payload.message);
@@ -192,6 +209,7 @@ export const aiApi = {
         content: replyContent,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         sources,
+        conversationId: payload.conversationId,
       };
 
       activeChatHistory.push(assistantMsg);
@@ -199,7 +217,7 @@ export const aiApi = {
     }
   },
 
-  clearHistory: async (): Promise<void> => {
-    activeChatHistory = [...mockInitialChatMessages];
+  clearHistory: async (applicationId?: string): Promise<void> => {
+    activeChatHistory = [createWelcomeMessage(applicationId)];
   },
 };

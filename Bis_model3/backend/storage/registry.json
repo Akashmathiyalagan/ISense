@@ -95,7 +95,23 @@
       "chunk_count": 5,
       "ingested_at": "2026-10-10T04:42:13.999345",
       "verification_status": "verified_official_record"
+    },
+    "BIS_Scheme_II_CRS_Application_Documents_Procedure.md": {
+      "document_id": "DOC-BIS-SCHEME2-PROC",
+      "standard_code": "BIS Scheme II Regulations",
+      "content_hash": "8b96387cb09ce790bbecbc87b4cbf39d3b9db1bf06766bd4e7ed33cc4ab4bd19",
+      "chunk_count": 9,
+      "ingested_at": "2026-10-11T13:41:16.399336+00:00",
+      "verification_status": "verified_official_record"
+    },
+    "BIS_Scheme_I_ISI_Application_Documents_Procedure.md": {
+      "document_id": "DOC-BIS-SCHEME1-PROC",
+      "standard_code": "BIS Scheme I Regulations",
+      "content_hash": "12c04cc3e1e9dbd49655083892b4741a6d06fcc5271cb590cb4a083de217b87b",
+      "chunk_count": 8,
+      "ingested_at": "2026-10-11T13:41:16.406248+00:00",
+      "verification_status": "verified_official_record"
     }
   },
-  "last_updated": "2026-10-10T04:42:13.999656"
+  "last_updated": "2026-10-11T13:41:16.407097+00:00"
 }

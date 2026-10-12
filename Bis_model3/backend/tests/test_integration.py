@@ -57,8 +57,9 @@ def test_authorized_application_context_chat(client, auth_header):
     assert data["insufficient_evidence"] is False
     assert len(data["sources"]) > 0
 
-def test_whatsapp_webhook_verification(client):
+def test_whatsapp_webhook_verification(client, monkeypatch):
     """Integration test: WhatsApp Cloud API webhook hub verification challenge."""
+    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "isense_sih_2025_token")
     res = client.get(
         "/api/webhook/whatsapp",
         params={
@@ -71,7 +72,14 @@ def test_whatsapp_webhook_verification(client):
     assert res.text == "11223344"
 
 def test_whatsapp_incoming_message_pipeline(client):
-    """Integration test: WhatsApp webhook handles incoming message, retrieves evidence and responds."""
+    """Integration test: WhatsApp webhook handles incoming message, retrieves evidence, responds, and deduplicates retries."""
+    import uuid
+    import json
+    import os
+    import hmac
+    import hashlib
+
+    test_msg_id = f"wamid.{uuid.uuid4().hex}"
     payload = {
         "object": "whatsapp_business_account",
         "entry": [{
@@ -82,7 +90,7 @@ def test_whatsapp_incoming_message_pipeline(client):
                     "metadata": {"display_phone_number": "12345", "phone_number_id": "999"},
                     "messages": [{
                         "from": "919876543210",
-                        "id": "wamid.HBgLMTEyMjMzNDQ1NQ",
+                        "id": test_msg_id,
                         "timestamp": "1741500000",
                         "text": {"body": "What standard applies to ceiling fans?"},
                         "type": "text"
@@ -92,12 +100,28 @@ def test_whatsapp_incoming_message_pipeline(client):
             }]
         }]
     }
-    res = client.post("/api/webhook/whatsapp", json=payload)
+
+    raw_body = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    app_secret = os.getenv("WHATSAPP_APP_SECRET", "").strip().strip('"').strip("'")
+    if app_secret:
+        sig = hmac.new(app_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        headers["X-Hub-Signature-256"] = f"sha256={sig}"
+
+    # First delivery: processed successfully through RAG
+    res = client.post("/api/webhook/whatsapp", content=raw_body, headers=headers)
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "success"
     assert "374" in data["response"] or len(data["sources"]) > 0
     assert "sources" in data
+
+    # Immediate retry: deduplicated safely without double-processing
+    retry_res = client.post("/api/webhook/whatsapp", content=raw_body, headers=headers)
+    assert retry_res.status_code == 200
+    retry_data = retry_res.json()
+    assert retry_data["status"] == "ok"
+    assert retry_data["message"] == "duplicate_message_ignored"
 
 def test_document_upload_and_isolation(client, auth_header):
     """Integration test: authorized user uploads document; document is isolated and visible to owner."""

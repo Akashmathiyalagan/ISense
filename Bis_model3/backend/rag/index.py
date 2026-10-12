@@ -35,7 +35,10 @@ class BISSearchIndex:
         if self.use_dense:
             try:
                 from sentence_transformers import SentenceTransformer
-                self.dense_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+                try:
+                    self.dense_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", local_files_only=True)
+                except Exception:
+                    self.dense_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
                 logger.info("Dense SentenceTransformer (all-MiniLM-L6-v2) initialized successfully.")
             except Exception as e:
                 logger.warning(f"Could not load SentenceTransformer, activating TF-IDF fallback: {e}")
@@ -162,7 +165,10 @@ class BISSearchIndex:
                     break
 
         # D. Hybrid Score Fusion
-        hybrid_scores = (alpha * dense_scores) + ((1.0 - alpha) * bm25_scores) + standard_boost
+        # If dense embeddings are not available, give full weight to BM25 lexical scores
+        has_dense = self.dense_embeddings is not None or (self.tfidf_matrix is not None and self.tfidf_vectorizer is not None)
+        effective_alpha = alpha if has_dense else 0.0
+        hybrid_scores = (effective_alpha * dense_scores) + ((1.0 - effective_alpha) * bm25_scores) + standard_boost
 
         # E. Ranking and Deduplication
         ranked_indices = np.argsort(hybrid_scores)[::-1]

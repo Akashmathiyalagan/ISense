@@ -80,7 +80,7 @@ KNOWN_BIS_STANDARDS_CATALOG: List[Dict[str, Any]] = [
         ]
     },
     {
-        "keywords": ["toy", "children toy", "educational toy", "plastic toy", "wooden toy"],
+        "keywords": ["toy", "children toy", "educational toy", "plastic toy", "wooden toy", "rc car", "remote control car", "remote control toy", "rc toy", "electric toy"],
         "standard_code": "IS 9873 (Part 1) : 2019",
         "standard_title": "Safety of Toys — Mechanical and Physical Properties",
         "category": "Consumer Goods & Toys",
@@ -170,7 +170,7 @@ KNOWN_BIS_STANDARDS_CATALOG: List[Dict[str, Any]] = [
         ]
     },
     {
-        "keywords": ["steel", "tmt bar", "rebar", "reinforcing steel"],
+        "keywords": ["tmt bar", "rebar", "reinforcing steel", "deformed steel bar", "steel reinforcement", "steel bar"],
         "standard_code": "IS 1786 : 2008",
         "standard_title": "High Strength Deformed Steel Bars and Wires for Concrete Reinforcement",
         "category": "Steel & Metallurgical Products",

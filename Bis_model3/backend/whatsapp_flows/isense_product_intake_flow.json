@@ -1,0 +1,193 @@
+{
+  "version": "7.1",
+  "screens": [
+    {
+      "id": "PRODUCT_DETAILS",
+      "title": "Product details",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "product_details_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Tell us about your ${data.product_name}"
+              },
+              {
+                "type": "TextBody",
+                "text": "Select the details that apply. These answers help ISense research official BIS guidance; they do not determine certification eligibility."
+              },
+              {
+                "type": "TextInput",
+                "name": "product_name",
+                "label": "Product name",
+                "required": true,
+                "init-value": "${data.product_name}"
+              },
+              {
+                "type": "TextInput",
+                "name": "product_type",
+                "label": "Product type / subtype",
+                "required": true,
+                "helper-text": "Example: vacuum flask, school backpack, toy car"
+              },
+              {
+                "type": "Dropdown",
+                "name": "material",
+                "label": "Main material",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "stainless_steel",
+                    "title": "Stainless steel / other metal"
+                  },
+                  {
+                    "id": "plastic_polymer",
+                    "title": "Plastic / polymer"
+                  },
+                  {
+                    "id": "glass_ceramic",
+                    "title": "Glass / ceramic"
+                  },
+                  {
+                    "id": "textile_leather",
+                    "title": "Textile / leather"
+                  },
+                  {
+                    "id": "electrical_electronic",
+                    "title": "Electrical / electronic components"
+                  },
+                  {
+                    "id": "mixed",
+                    "title": "Mixed materials"
+                  },
+                  {
+                    "id": "other_unknown",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "capacity",
+                "label": "Capacity, size, model or rating",
+                "required": false,
+                "helper-text": "For example: 750 ml, dimensions, voltage or model number"
+              },
+              {
+                "type": "Dropdown",
+                "name": "intended_use",
+                "label": "Intended use",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "household",
+                    "title": "Household / consumer use"
+                  },
+                  {
+                    "id": "children_toy",
+                    "title": "Children's product / toy"
+                  },
+                  {
+                    "id": "food_contact",
+                    "title": "Food or drinking-water contact"
+                  },
+                  {
+                    "id": "electrical",
+                    "title": "Electrical / electronic use"
+                  },
+                  {
+                    "id": "commercial_industrial",
+                    "title": "Commercial / industrial use"
+                  },
+                  {
+                    "id": "medical_health",
+                    "title": "Medical / health-related use"
+                  },
+                  {
+                    "id": "other_unsure",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "origin",
+                "label": "Where is it manufactured?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "india",
+                    "title": "Manufactured in India"
+                  },
+                  {
+                    "id": "imported",
+                    "title": "Imported / manufactured abroad"
+                  },
+                  {
+                    "id": "undecided",
+                    "title": "Not sure yet"
+                  }
+                ]
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "help_needed",
+                "label": "What BIS guidance do you need? Select all that apply.",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "applicability",
+                    "title": "Whether certification is required"
+                  },
+                  {
+                    "id": "standard_qco",
+                    "title": "Applicable Indian Standard / QCO"
+                  },
+                  {
+                    "id": "documents",
+                    "title": "Documents for application"
+                  },
+                  {
+                    "id": "testing",
+                    "title": "Testing and laboratory requirements"
+                  },
+                  {
+                    "id": "fees_process",
+                    "title": "Fees and application process"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit details",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "product_name": "${form.product_name}",
+                    "product_type": "${form.product_type}",
+                    "material": "${form.material}",
+                    "capacity": "${form.capacity}",
+                    "intended_use": "${form.intended_use}",
+                    "origin": "${form.origin}",
+                    "help_needed": "${form.help_needed}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

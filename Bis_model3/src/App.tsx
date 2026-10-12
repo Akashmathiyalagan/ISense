@@ -25,6 +25,7 @@ import { AIAssistant } from './pages/AIAssistant';
 import { Tracking } from './pages/Tracking';
 import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
+import { FloatingAIChat } from './components/ai/FloatingAIChat';
 
 // Floating Toast Container for Real-Time Event Alerts
 const ToastContainer: React.FC = () => {
@@ -85,6 +86,9 @@ const AppLayout: React.FC = () => {
       {/* Real-Time Floating Toasts */}
       <ToastContainer />
 
+      {/* Floating AI Assistant Widget */}
+      <FloatingAIChat />
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block shrink-0 h-full">
         <Sidebar />
@@ -126,7 +130,7 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<><Landing /><FloatingAIChat /></>} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 

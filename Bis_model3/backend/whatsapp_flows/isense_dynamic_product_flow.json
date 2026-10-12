@@ -1,0 +1,826 @@
+{
+  "version": "7.1",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "PRODUCT_ROUTER": [
+      "WATER_BOTTLE",
+      "BACKPACK",
+      "RC_CAR",
+      "OTHER_PRODUCT"
+    ],
+    "WATER_BOTTLE": [],
+    "BACKPACK": [],
+    "RC_CAR": [],
+    "OTHER_PRODUCT": []
+  },
+  "screens": [
+    {
+      "id": "PRODUCT_ROUTER",
+      "title": "ISense product details",
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Let's identify your product"
+          },
+          {
+            "type": "TextBody",
+            "text": "ISense will show questions relevant to your product. Your answers help us look for official BIS guidance."
+          },
+          {
+            "type": "TextBody",
+            "text": "Product: ${data.product_name}"
+          },
+          {
+            "type": "Form",
+            "name": "router_form",
+            "children": [
+              {
+                "type": "Footer",
+                "label": "Show my questions",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "product_name": "${data.product_name}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "WATER_BOTTLE",
+      "title": "Water bottle / flask",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "product_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Water bottle / flask"
+              },
+              {
+                "type": "TextBody",
+                "text": "These questions are product-specific. Answers are not proof that BIS certification is or is not required."
+              },
+              {
+                "type": "TextInput",
+                "name": "product_name",
+                "label": "Product name",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "product_type",
+                "label": "Bottle or flask type",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "material",
+                "label": "Main material",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "steel",
+                    "title": "Stainless steel"
+                  },
+                  {
+                    "id": "plastic",
+                    "title": "Plastic"
+                  },
+                  {
+                    "id": "glass",
+                    "title": "Glass"
+                  },
+                  {
+                    "id": "copper",
+                    "title": "Copper / other metal"
+                  },
+                  {
+                    "id": "mixed",
+                    "title": "Multiple materials"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "capacity",
+                "label": "Capacity",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "under_500ml",
+                    "title": "Below 500 ml"
+                  },
+                  {
+                    "id": "500_750ml",
+                    "title": "500–750 ml"
+                  },
+                  {
+                    "id": "1l",
+                    "title": "Around 1 litre"
+                  },
+                  {
+                    "id": "over_1l",
+                    "title": "Above 1 litre"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "RadioButtonsGroup",
+                "name": "insulation",
+                "label": "Insulation",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "insulated",
+                    "title": "Insulated / vacuum flask"
+                  },
+                  {
+                    "id": "non_insulated",
+                    "title": "Not insulated"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "intended_use",
+                "label": "Intended use",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "drinking_water",
+                    "title": "Drinking water / beverage"
+                  },
+                  {
+                    "id": "food_contact",
+                    "title": "Other food contact"
+                  },
+                  {
+                    "id": "commercial",
+                    "title": "Commercial / institutional"
+                  },
+                  {
+                    "id": "other",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "origin",
+                "label": "Manufacturing origin",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "india",
+                    "title": "India"
+                  },
+                  {
+                    "id": "imported",
+                    "title": "Imported / abroad"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not decided / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "help_needed",
+                "label": "What BIS guidance do you need?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "applicability",
+                    "title": "Whether a requirement applies"
+                  },
+                  {
+                    "id": "standard_qco",
+                    "title": "Applicable Indian Standard / QCO"
+                  },
+                  {
+                    "id": "documents",
+                    "title": "Application documents"
+                  },
+                  {
+                    "id": "testing",
+                    "title": "Testing / lab requirements"
+                  },
+                  {
+                    "id": "process",
+                    "title": "Certification process / fees"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit details",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "product_name": "${form.product_name}",
+                    "product_type": "${form.product_type}",
+                    "material": "${form.material}",
+                    "origin": "${form.origin}",
+                    "help_needed": "${form.help_needed}",
+                    "capacity": "${form.capacity}",
+                    "insulation": "${form.insulation}",
+                    "intended_use": "${form.intended_use}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "BACKPACK",
+      "title": "Backpack / bag",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "product_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Backpack / bag"
+              },
+              {
+                "type": "TextBody",
+                "text": "These questions are product-specific. Answers are not proof that BIS certification is or is not required."
+              },
+              {
+                "type": "TextInput",
+                "name": "product_name",
+                "label": "Product name",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "product_type",
+                "label": "Bag type",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "material",
+                "label": "Main material",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "textile",
+                    "title": "Textile / fabric"
+                  },
+                  {
+                    "id": "leather",
+                    "title": "Leather / imitation leather"
+                  },
+                  {
+                    "id": "plastic",
+                    "title": "Plastic / polymer"
+                  },
+                  {
+                    "id": "mixed",
+                    "title": "Mixed materials"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "intended_use",
+                "label": "Intended use",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "school",
+                    "title": "School bag"
+                  },
+                  {
+                    "id": "travel",
+                    "title": "Travel / hiking backpack"
+                  },
+                  {
+                    "id": "work",
+                    "title": "Work / laptop bag"
+                  },
+                  {
+                    "id": "handbag",
+                    "title": "Handbag / fashion bag"
+                  },
+                  {
+                    "id": "industrial",
+                    "title": "Industrial / protective use"
+                  },
+                  {
+                    "id": "other",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "age_group",
+                "label": "Intended user",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "children",
+                    "title": "Children"
+                  },
+                  {
+                    "id": "adults",
+                    "title": "Adults"
+                  },
+                  {
+                    "id": "all",
+                    "title": "All ages"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "origin",
+                "label": "Manufacturing origin",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "india",
+                    "title": "India"
+                  },
+                  {
+                    "id": "imported",
+                    "title": "Imported / abroad"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not decided / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "help_needed",
+                "label": "What BIS guidance do you need?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "applicability",
+                    "title": "Whether a requirement applies"
+                  },
+                  {
+                    "id": "standard_qco",
+                    "title": "Applicable Indian Standard / QCO"
+                  },
+                  {
+                    "id": "documents",
+                    "title": "Application documents"
+                  },
+                  {
+                    "id": "testing",
+                    "title": "Testing / lab requirements"
+                  },
+                  {
+                    "id": "process",
+                    "title": "Certification process / fees"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit details",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "product_name": "${form.product_name}",
+                    "product_type": "${form.product_type}",
+                    "material": "${form.material}",
+                    "origin": "${form.origin}",
+                    "help_needed": "${form.help_needed}",
+                    "intended_use": "${form.intended_use}",
+                    "age_group": "${form.age_group}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "RC_CAR",
+      "title": "RC car / toy",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "product_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "RC car / toy"
+              },
+              {
+                "type": "TextBody",
+                "text": "These questions are product-specific. Answers are not proof that BIS certification is or is not required."
+              },
+              {
+                "type": "TextInput",
+                "name": "product_name",
+                "label": "Product name",
+                "required": true
+                
+              },
+              {
+                "type": "TextInput",
+                "name": "product_type",
+                "label": "Toy or vehicle type",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "material",
+                "label": "Main material",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "plastic",
+                    "title": "Plastic"
+                  },
+                  {
+                    "id": "metal",
+                    "title": "Metal"
+                  },
+                  {
+                    "id": "mixed",
+                    "title": "Mixed materials"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "power_source",
+                "label": "Power source",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "replaceable_battery",
+                    "title": "Replaceable batteries"
+                  },
+                  {
+                    "id": "rechargeable_lithium",
+                    "title": "Rechargeable lithium battery"
+                  },
+                  {
+                    "id": "usb_rechargeable",
+                    "title": "USB rechargeable (battery type unknown)"
+                  },
+                  {
+                    "id": "manual",
+                    "title": "No battery / manual"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "age_group",
+                "label": "Intended age group",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "under_3",
+                    "title": "Under 3 years"
+                  },
+                  {
+                    "id": "3_to_8",
+                    "title": "3–8 years"
+                  },
+                  {
+                    "id": "over_8",
+                    "title": "Over 8 years"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "origin",
+                "label": "Manufacturing origin",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "india",
+                    "title": "India"
+                  },
+                  {
+                    "id": "imported",
+                    "title": "Imported / abroad"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not decided / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "help_needed",
+                "label": "What BIS guidance do you need?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "applicability",
+                    "title": "Whether a requirement applies"
+                  },
+                  {
+                    "id": "standard_qco",
+                    "title": "Applicable Indian Standard / QCO"
+                  },
+                  {
+                    "id": "documents",
+                    "title": "Application documents"
+                  },
+                  {
+                    "id": "testing",
+                    "title": "Testing / lab requirements"
+                  },
+                  {
+                    "id": "process",
+                    "title": "Certification process / fees"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit details",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "product_name": "${form.product_name}",
+                    "product_type": "${form.product_type}",
+                    "material": "${form.material}",
+                    "origin": "${form.origin}",
+                    "help_needed": "${form.help_needed}",
+                    "power_source": "${form.power_source}",
+                    "age_group": "${form.age_group}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "OTHER_PRODUCT",
+      "title": "Other product",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "product_name": {
+          "type": "string",
+          "__example__": "Water bottle"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "product_form",
+            "children": [
+              {
+                "type": "TextHeading",
+                "text": "Other product"
+              },
+              {
+                "type": "TextBody",
+                "text": "These questions are product-specific. Answers are not proof that BIS certification is or is not required."
+              },
+              {
+                "type": "TextInput",
+                "name": "product_name",
+                "label": "Product name",
+                "required": true
+                
+              },
+              {
+                "type": "TextInput",
+                "name": "product_type",
+                "label": "Product type / subtype",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "material",
+                "label": "Main material",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "metal",
+                    "title": "Metal"
+                  },
+                  {
+                    "id": "plastic",
+                    "title": "Plastic / polymer"
+                  },
+                  {
+                    "id": "textile",
+                    "title": "Textile / leather"
+                  },
+                  {
+                    "id": "electrical",
+                    "title": "Electrical / electronic"
+                  },
+                  {
+                    "id": "mixed",
+                    "title": "Mixed materials"
+                  },
+                  {
+                    "id": "other",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "specifications",
+                "label": "Specifications / model / rating",
+                "required": false
+              },
+              {
+                "type": "Dropdown",
+                "name": "intended_use",
+                "label": "Intended use",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "consumer",
+                    "title": "Consumer / household"
+                  },
+                  {
+                    "id": "children",
+                    "title": "Children / toy"
+                  },
+                  {
+                    "id": "food_contact",
+                    "title": "Food or drinking-water contact"
+                  },
+                  {
+                    "id": "electrical",
+                    "title": "Electrical / electronic"
+                  },
+                  {
+                    "id": "commercial",
+                    "title": "Commercial / industrial"
+                  },
+                  {
+                    "id": "other",
+                    "title": "Other / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "origin",
+                "label": "Manufacturing origin",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "india",
+                    "title": "India"
+                  },
+                  {
+                    "id": "imported",
+                    "title": "Imported / abroad"
+                  },
+                  {
+                    "id": "unknown",
+                    "title": "Not decided / not sure"
+                  }
+                ]
+              },
+              {
+                "type": "CheckboxGroup",
+                "name": "help_needed",
+                "label": "What BIS guidance do you need?",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "applicability",
+                    "title": "Whether a requirement applies"
+                  },
+                  {
+                    "id": "standard_qco",
+                    "title": "Applicable Indian Standard / QCO"
+                  },
+                  {
+                    "id": "documents",
+                    "title": "Application documents"
+                  },
+                  {
+                    "id": "testing",
+                    "title": "Testing / lab requirements"
+                  },
+                  {
+                    "id": "process",
+                    "title": "Certification process / fees"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Submit details",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "product_name": "${form.product_name}",
+                    "product_type": "${form.product_type}",
+                    "material": "${form.material}",
+                    "origin": "${form.origin}",
+                    "help_needed": "${form.help_needed}",
+                    "specifications": "${form.specifications}",
+                    "intended_use": "${form.intended_use}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

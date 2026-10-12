@@ -7,6 +7,116 @@ interface ChatMessageProps {
   message: ChatMessageItem;
 }
 
+const formatInline = (str: string): React.ReactNode => {
+  const parts: React.ReactNode[] = [];
+  let remaining = str;
+  let keyIndex = 0;
+
+  while (remaining.length > 0) {
+    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
+    const italicMatch = remaining.match(/(?<!\*)\*([^*]+)\*(?!\*)/);
+
+    let earliestMatch: { index: number; length: number; node: React.ReactNode } | null = null;
+
+    if (linkMatch && linkMatch.index !== undefined) {
+      earliestMatch = {
+        index: linkMatch.index,
+        length: linkMatch[0].length,
+        node: (
+          <a
+            key={`lnk-${keyIndex++}`}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline font-medium hover:text-blue-800"
+          >
+            {linkMatch[1]}
+          </a>
+        ),
+      };
+    }
+
+    if (boldMatch && boldMatch.index !== undefined) {
+      if (!earliestMatch || boldMatch.index < earliestMatch.index) {
+        earliestMatch = {
+          index: boldMatch.index,
+          length: boldMatch[0].length,
+          node: (
+            <strong key={`bld-${keyIndex++}`} className="font-semibold text-slate-900">
+              {boldMatch[1]}
+            </strong>
+          ),
+        };
+      }
+    }
+
+    if (italicMatch && italicMatch.index !== undefined) {
+      if (!earliestMatch || italicMatch.index < earliestMatch.index) {
+        earliestMatch = {
+          index: italicMatch.index,
+          length: italicMatch[0].length,
+          node: (
+            <em key={`itc-${keyIndex++}`} className="italic text-slate-600">
+              {italicMatch[1]}
+            </em>
+          ),
+        };
+      }
+    }
+
+    if (earliestMatch) {
+      if (earliestMatch.index > 0) {
+        parts.push(remaining.substring(0, earliestMatch.index));
+      }
+      parts.push(earliestMatch.node);
+      remaining = remaining.substring(earliestMatch.index + earliestMatch.length);
+    } else {
+      parts.push(remaining);
+      break;
+    }
+  }
+
+  return parts.length === 1 ? parts[0] : <>{parts}</>;
+};
+
+const renderFormattedText = (text: string) => {
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    if (line.startsWith('### ')) {
+      return (
+        <h4 key={idx} className="font-bold text-slate-900 mt-2 mb-1 text-sm">
+          {formatInline(line.replace(/^###\s+/, ''))}
+        </h4>
+      );
+    }
+    if (line.startsWith('## ')) {
+      return (
+        <h3 key={idx} className="font-bold text-slate-900 mt-2.5 mb-1.5 text-base">
+          {formatInline(line.replace(/^##\s+/, ''))}
+        </h3>
+      );
+    }
+    const bulletMatch = line.match(/^(\s*)([•\-\*]|\d+\.)\s+(.+)$/);
+    if (bulletMatch) {
+      return (
+        <div key={idx} className="flex items-start gap-1.5 my-0.5 pl-1 text-slate-800">
+          <span className="font-bold text-blue-600 shrink-0">{bulletMatch[2]}</span>
+          <span className="leading-relaxed">{formatInline(bulletMatch[3])}</span>
+        </div>
+      );
+    }
+    if (!line.trim()) {
+      return <div key={idx} className="h-1.5" />;
+    }
+    return (
+      <p key={idx} className="my-0.5 leading-relaxed">
+        {formatInline(line)}
+      </p>
+    );
+  });
+};
+
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isAssistant = message.role === 'assistant';
 
@@ -25,7 +135,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             : 'bg-blue-600 text-white rounded-tr-xs'
         }`}
       >
-        <div className="whitespace-pre-line leading-relaxed">{message.content}</div>
+        <div className="leading-relaxed">
+          {isAssistant ? renderFormattedText(message.content) : message.content}
+        </div>
 
         {isAssistant && message.confidence !== undefined && message.confidence > 0 && (
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">

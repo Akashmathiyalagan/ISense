@@ -20,10 +20,13 @@ export interface ChatMessageItem {
   insufficient_evidence?: boolean;
   warnings?: string[];
   provider?: string;
+  conversationId?: string;
+  status?: string;
 }
 
 export interface AIChatRequest {
   message: string;
   applicationId?: string;
   context?: string;
+  conversationId?: string;
 }

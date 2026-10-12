@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 export interface RealtimeEvent {
   type: 'application_created' | 'document_uploaded' | 'document_deleted' | 'document_updated' | 'chat_message' | 'requirement_updated' | 'user_registered' | 'connected';
@@ -54,7 +54,7 @@ export const RealtimeProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   useEffect(() => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
     let eventSource: EventSource | null = null;
     let ws: WebSocket | null = null;
     let reconnectTimeout: any = null;
