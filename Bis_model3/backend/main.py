@@ -1185,11 +1185,18 @@ async def ai_chat(
 from rag.conversation import is_greeting, is_farewell, is_thanks
 
 def is_greeting_message(text: str) -> bool:
-    """
-    Checks if a message is strictly a conversational greeting.
-    Product names, standard numbers, or testing clauses (e.g. 'Rc car', 'Helmet', 'LED lamp', 'IS 16102')
-    MUST NOT be classified as greetings.
-    """
+    """Recognize normal and elongated short greetings without misclassifying products."""
+    value = " ".join((text or "").strip().split()).casefold()
+    normalized = re.sub(r"(.)\1+", r"\1", value)
+    if normalized in {
+        "hi", "hello", "hey", "yo", "hiya",
+        "good morning", "good afternoon", "good evening",
+        "thanks", "thank you", "thx", "ty", "bye", "goodbye",
+    }:
+        return True
+    # Product names and standard identifiers should remain technical queries.
+    if re.search(r"\b(?:is|iso)\s*[-:]?\s*\d", value):
+        return False
     return is_greeting(text)
 
 def get_whatsapp_greeting_response() -> Dict[str, Any]:
@@ -1482,6 +1489,23 @@ async def handle_whatsapp_webhook(
                     # Option 1: conversational product intake through WhatsApp buttons/lists.
                     # Unlike native WhatsApp Flows, this path works without Flow publication.
                     active_questionnaire = whatsapp_product_questionnaire.has_session(from_number)
+
+                    # Do not consume greetings as questionnaire answers. This is
+                    # especially important when a prior question is still pending.
+                    if (
+                        config.is_configured()
+                        and active_questionnaire
+                        and is_greeting_message(text_body or "")
+                    ):
+                        await whatsapp_client.send_raw_text(
+                            from_number,
+                            "You're currently answering a product questionnaire. Please answer the question already shown, or type *cancel* to stop. Your greeting was not recorded as an answer."
+                        )
+                        return {
+                            "status": "success",
+                            "event": "questionnaire_waiting_for_answer",
+                        }
+
                     starts_questionnaire = (
                         msg_type == "text"
                         and should_open_product_intake_flow(text_body)
