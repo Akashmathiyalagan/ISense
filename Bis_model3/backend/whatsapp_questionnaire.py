@@ -319,30 +319,23 @@ class WhatsAppProductQuestionnaire:
 
     @staticmethod
     def _to_rag_query(session: Dict[str, Any]) -> str:
+        """Build a user-facing regulatory query; response policy belongs in the RAG system prompt."""
         questions = _questions_for_session(session)
-        labels = {q["key"]: q.get("prompt", q["key"].replace("_", " ").title()) for q in questions}
+        labels = {q["key"]: q.get("label") or q.get("prompt", q["key"].replace("_", " ").title()) for q in questions}
         lines = [
-            "The user is seeking BIS guidance. The following are user-provided product details, not regulatory evidence.",
-            f"Product name: {session.get('product_name', 'unspecified')}",
-            f"Product category detected for questionnaire routing: {session.get('category', 'general')}",
+            f"Please assess the BIS requirements for this exact product: {session.get('product_name', 'unspecified product')}.",
+            "Product details supplied by the user:",
+            f"- Product name: {session.get('product_name', 'unspecified product')}",
         ]
         for key, value in session.get("answers", {}).items():
-            lines.append(f"{labels.get(key, key)}: {value}")
+            lines.append(f"- {labels.get(key, key.replace('_', ' ').title())}: {value}")
+
         lines.append(
-            "Use only retrieved official BIS or government evidence for regulatory claims. The answers above are user-provided product facts, not evidence. "
-            "After retrieval, answer in this order: "
-            "(1) product scope and any remaining assumptions; "
-            "(2) potentially applicable Indian Standard number, full title and edition, with a short scope match; "
-            "(3) whether compulsory certification is established by a current QCO/official order, voluntary, or still unverified; "
-            "(4) testing, sampling, lab and product-manual/Scheme of Inspection and Testing requirements, with clause references where retrieved; "
-            "(5) practical next steps for the user's role (manufacturer, importer, seller, or personal-use consumer); "
-            "(6) required documents, application portal, marking, fees and timelines only where source evidence supports them; "
-            "(7) clickable official source links. "
-            "Do not state a standard number or mandatory status solely from Gemini's general knowledge or product similarity. "
-            "If there is no supporting source, explicitly say the exact standard or current QCO status could not be verified from the indexed corpus, "
-            "then name the missing evidence and link to the official BIS Know Your Standard portal (https://www.bis.gov.in/Know-Your-Standard/?lang=en), "
-            "Scheme-I list (https://www.bis.gov.in/product-certification/products-under-compulsory-certification/scheme-i-mark-scheme/?lang=en), "
-            "and Manak Online (https://www.manakonline.in/). Do not invent fees, time limits, documents, clauses, exemptions or URLs."
+            "Based on the product details, identify any potentially applicable Indian Standard and its current edition, "
+            "whether a current Quality Control Order or other official order makes certification compulsory, "
+            "and the relevant testing and certification process for the user's stated activity. "
+            "Distinguish a children's toy from an adult hobby or collector model where that distinction matters. "
+            "Explain which points are supported by the retrieved official sources and which still need confirmation."
         )
         return "\n".join(lines)
 
