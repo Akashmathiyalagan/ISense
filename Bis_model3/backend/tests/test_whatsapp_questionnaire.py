@@ -246,7 +246,7 @@ def test_adaptive_interview_generates_next_question_after_answer_and_refreshes_r
     )
     assert first["question_number"] == 1
     assert first["total_questions"] == 1
-    assert "chair_subtype" in bot._sessions["adaptive-user"]["questions"][0]["key"]
+    assert bot._sessions["adaptive-user"]["questions"][0]["key"] == "chair_subtype"
 
     second = bot.handle_reply("adaptive-user", "office chair")
     assert second["handled"] is True
