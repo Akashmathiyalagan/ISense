@@ -486,7 +486,15 @@ class WhatsAppProductQuestionnaire:
         questions = _questions_for_session(session)
         idx = int(session["index"])
         q = questions[idx]
-        lead = f"Let's collect a few details about *{session['product_name']}*." if intro else f"Recorded: *{session['answers'][questions[idx - 1]['key']]}*."
+        adaptive = bool(session.get("adaptive_interview"))
+        if intro:
+            lead = f"I checked the BIS catalogue and available scope records for *{session['product_name']}*."
+        elif adaptive:
+            previous_key = session.get("asked_questions", [""])[-1]
+            previous_value = session.get("answers", {}).get(previous_key, "")
+            lead = f"Recorded: *{previous_value}*. I’m narrowing the product scope using that detail."
+        else:
+            lead = f"Recorded: *{session['answers'][questions[idx - 1]['key']]}*."
         # The list-opening button is the chooser title; keep it short and
         # question-specific so the user sees the question while selecting.
         list_title = q.get("list_title") or _default_list_title(q["key"])
