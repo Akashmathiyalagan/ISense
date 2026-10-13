@@ -235,6 +235,11 @@ class WhatsAppProductQuestionnaire:
             catalogue_candidates=catalogue_candidates,
             scope_evidence=evidence_rows,
         )
+        # New sessions ask one question at a time and refresh evidence after each
+        # answer. Existing sessions are left untouched for compatibility.
+        adaptive_interview = bool(llm_provider is not None and type(llm_provider).__name__ != "UnavailableLLMProvider")
+        if adaptive_interview:
+            questions = questions[:1]
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
@@ -242,7 +247,12 @@ class WhatsAppProductQuestionnaire:
                 "answers": {},
                 "questions": questions,
                 "catalogue_candidates": catalogue_candidates,
-                "questionnaire_source": "candidate_aware_gemini_or_fallback",
+                "questionnaire_source": "adaptive_candidate_aware" if adaptive_interview else "compact_fallback",
+                "adaptive_interview": adaptive_interview,
+                "asked_questions": [],
+                "llm_provider": llm_provider if adaptive_interview else None,
+                "catalogue": catalogue,
+                "rag_engine": None,
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
