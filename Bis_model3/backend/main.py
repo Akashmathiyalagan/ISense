@@ -850,8 +850,9 @@ def get_documents(
         return [d for d in documents_db if d.get("applicationId", "").lower() == app_id.lower()]
     return [d for d in documents_db if d.get("applicationId", "").lower() in allowed_app_ids]
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".png", ".jpg", ".jpeg"}
-MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".webm"}
+MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB for documents and images
+MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB for product videos
 APPLICANT_UPLOADS_DIR = os.path.join(STORAGE_DIR, "applicant_uploads")
 os.makedirs(APPLICANT_UPLOADS_DIR, exist_ok=True)
 
@@ -880,15 +881,18 @@ async def upload_document(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file format '{ext}'. Only PDF, DOCX, XLSX, PNG, and JPG documents are accepted."
+            detail=f"Unsupported file format '{ext}'. Accepted formats include PDF, DOC/DOCX, XLS/XLSX, JPG, PNG, WEBP, MP4, MOV, and WEBM."
         )
 
-    # Size validation
+    # Video files have a separate size limit; other files remain limited to 15 MB.
     content_bytes = await file.read()
-    if len(content_bytes) > MAX_FILE_SIZE_BYTES:
+    is_video = ext in {".mp4", ".mov", ".webm"}
+    size_limit = MAX_VIDEO_SIZE_BYTES if is_video else MAX_FILE_SIZE_BYTES
+    if len(content_bytes) > size_limit:
+        limit_mb = 50 if is_video else 15
         raise HTTPException(
             status_code=400,
-            detail="File exceeds maximum permissible size limit of 15 MB. Please upload a smaller document."
+            detail=f"File exceeds the {limit_mb} MB limit for this file type. Please upload a smaller file."
         )
 
     doc_id = f"doc-{uuid.uuid4().hex[:6]}"
