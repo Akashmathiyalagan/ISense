@@ -55,18 +55,43 @@ The actual capabilities available depend on the configured environment, indexed 
 ~~~mermaid
 flowchart TD
     U[User] --> UI[ISense Web Interface]
-    U --> WA[WhatsApp integration in progress]
-    UI --> API[FastAPI Backend]
-    WA --> API
-    API --> Q[Query and standard detection]
-    Q --> R[Hybrid retrieval]
-    R --> KB[Indexed BIS-related documents]
-    KB --> R
-    R --> G[Grounded answer generation]
-    G --> C[Answer and available source metadata]
-    C --> UI
-    C --> WA
+    U -.-> WA[WhatsApp Product Intake<br/>Integration in Progress]
+
+    UI --> P[Product Details and Category]
+    P --> Q[Dynamic Product Questionnaire]
+    Q --> API[FastAPI Backend]
+
+    WA -.-> API
+
+    API --> D[Product and Standard Query Detection]
+    D --> R[Hybrid RAG Retrieval]
+
+    R <--> KB[Indexed BIS-Related Documents]
+    KB --> E[Retrieved Evidence and Source Metadata]
+    E --> A[Grounded AI Assessment]
+
+    A --> RES[Assessment Results and Guidance]
+    RES --> UI
+
+    UI --> REG[Product Registration]
+    REG --> DOC[Upload Product Photos and Video]
+    DOC --> APP[Application Record and Documents]
+
+    RES -.-> REG
+    APP --> END[Registration and Compliance Preparation]
+
+    classDef user fill:#e8f1ff,stroke:#3973ac,color:#172b4d
+    classDef process fill:#e9f7ef,stroke:#39845a,color:#183b28
+    classDef ai fill:#f2eaff,stroke:#8054b5,color:#35204d
+    classDef pending fill:#fff3d6,stroke:#c18b22,color:#573d08,stroke-dasharray:5 5
+
+    class U,UI user
+    class P,Q,D,REG,DOC,APP,END process
+    class R,KB,E,A,RES ai
+    class WA pending
 ~~~
+
+The diagram represents the intended end-to-end workflow. The WhatsApp intake is explicitly marked as in progress; the diagram does not independently verify that every step is operational in a deployed environment.
 
 ## WhatsApp Questionnaire Screenshots
 
