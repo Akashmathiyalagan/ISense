@@ -222,17 +222,24 @@ class WhatsAppProductQuestionnaire:
                 "verification_status": getattr(chunk, "verification_status", ""),
             })
 
-        questions = _questions_from_schema(
-            name,
-            llm_provider,
-            catalogue_candidates=catalogue_candidates,
-            scope_evidence=evidence_rows,
-        )
-        # New sessions ask one question at a time and refresh evidence after each
-        # answer. Existing sessions are left untouched for compatibility.
+        # Generate the initial field using the same evidence-aware question selector
+        # used after every answer. This ensures the first user message also asks one
+        # concrete clarification rather than showing a fixed multi-field form.
         adaptive_interview = bool(llm_provider is not None and type(llm_provider).__name__ != "UnavailableLLMProvider")
         if adaptive_interview:
-            questions = questions[:1]
+            questions = self._questions_from_first_turn(
+                name,
+                llm_provider,
+                catalogue_candidates=catalogue_candidates,
+                scope_evidence=evidence_rows,
+            )
+        else:
+            questions = _questions_from_schema(
+                name,
+                llm_provider,
+                catalogue_candidates=catalogue_candidates,
+                scope_evidence=evidence_rows,
+            )[:1]
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
@@ -251,6 +258,41 @@ class WhatsAppProductQuestionnaire:
             }
             self._save()
             return self._current_question(sender_id, intro=True)
+
+    def _questions_from_first_turn(
+        self,
+        product_name: str,
+        llm_provider: Any,
+        catalogue_candidates: List[Dict[str, Any]],
+        scope_evidence: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Turn initial retrieval into one plain-language clarification question."""
+        schema = build_questionnaire(
+            product_name,
+            llm_provider,
+            catalogue_candidates=catalogue_candidates,
+            scope_evidence=scope_evidence,
+        )
+        fields = schema.get("fields", [])
+        if not fields:
+            return _questions_from_schema(product_name, llm_provider, catalogue_candidates, scope_evidence)[:1]
+        field = fields[0]
+        field_id = str(field.get("id") or "product_subtype").strip()[:40]
+        label = str(field.get("label") or f"What kind of {product_name} is it?").strip()[:180]
+        kind = str(field.get("type") or "text").lower()
+        options = field.get("options", [])
+        if kind == "radio" and isinstance(options, list) and len(options) >= 2:
+            choices = [str(v).strip()[:100] for v in options if str(v).strip()][:6]
+        else:
+            kind, choices = "text", []
+        return [{
+            "key": field_id,
+            "prompt": label,
+            "list_title": _short_picker_title(field_id, label),
+            "choices": choices,
+            "input_type": kind,
+            "help_text": str(field.get("helpText") or "")[:240],
+        }]
 
     def handle_reply(self, sender_id: str, answer: str) -> Dict[str, Any]:
         normalized = " ".join((answer or "").split())
