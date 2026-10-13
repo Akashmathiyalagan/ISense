@@ -535,7 +535,7 @@ class WhatsAppProductQuestionnaire:
     def _to_rag_query(session: Dict[str, Any]) -> str:
         """Build a user-facing regulatory query; response policy belongs in the RAG system prompt."""
         questions = _questions_for_session(session)
-        labels = {q["key"]: q.get("label") or q["key"].replace("_", " ").title() for q in questions}
+        labels = {q["key"]: q.get("label") or q.get("prompt") or q["key"].replace("_", " ").title() for q in questions}
         lines = [
             f"Please assess the BIS requirements for this exact product: {session.get('product_name', 'unspecified product')}.",
             "Product details supplied by the user:",
