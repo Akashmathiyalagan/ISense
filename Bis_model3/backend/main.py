@@ -1100,10 +1100,13 @@ async def product_questionnaire(
         raise HTTPException(status_code=422, detail="Enter a product name first.")
     if len(product) > 120:
         raise HTTPException(status_code=422, detail="Product name must be 120 characters or fewer.")
-    catalogue_candidates = rag_engine.catalogue.search(product, top_k=8) if getattr(rag_engine, "catalogue", None) else []
+    # Catalogue matches are investigation candidates, not confirmed applicable standards.
+    # Retrieve a wider set so the UI can compare possible product scopes before asking
+    # the user differentiating questions.
+    catalogue_candidates = rag_engine.catalogue.search(product, top_k=20) if getattr(rag_engine, "catalogue", None) else []
     scope_chunks = rag_engine.retrieve(
-        f"{product} product scope design intended use applicable Indian Standard",
-        top_k=6,
+        f"{product} product scope design intended use exclusions standard revision amendment",
+        top_k=12,
     )
     scope_evidence = [
         {
@@ -1120,6 +1123,38 @@ async def product_questionnaire(
         getattr(rag_engine, "llm_provider", None),
         catalogue_candidates=catalogue_candidates,
         scope_evidence=scope_evidence,
+    )
+    # Expose candidates and supporting scope excerpts independently of the generated
+    # questionnaire, allowing the client to render a comparison before asking questions.
+    schema["candidateStandards"] = [
+        {
+            "is_number": item.get("is_number"),
+            "title": item.get("title"),
+            "technical_department": item.get("technical_department"),
+            "sectional_committee": item.get("sectional_committee"),
+            "standard_type": item.get("standard_type"),
+            "published_on": item.get("published_on"),
+            "source_url": item.get("source_url"),
+            "evidence_level": "catalogue_metadata_only",
+            "applicability": "unconfirmed",
+        }
+        for item in catalogue_candidates
+        if isinstance(item, dict) and item.get("is_number") and item.get("title")
+    ]
+    schema["scopeEvidence"] = [
+        {
+            "standard_code": row.get("standard_code"),
+            "standard_title": row.get("standard_title"),
+            "clause": row.get("clause"),
+            "text": str(row.get("text") or "")[:1800],
+            "source_url": row.get("source_url"),
+        }
+        for row in scope_evidence
+    ]
+    schema["revisionPolicy"] = (
+        "Keep each available edition and amendment as a separate source record. "
+        "Do not assume the newest-looking catalogue title is current or that a standard is mandatory "
+        "without current official evidence."
     )
     schema["conversationId"] = payload.conversationId
     schema["submitEndpoint"] = "/api/ai/chat"
