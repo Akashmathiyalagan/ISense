@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient, handleApiError } from '../services/api';
 import {
   ArrowRight, ArrowLeft, CheckCircle2, ChevronDown, CircleHelp,
@@ -65,6 +65,13 @@ export const ProductAssessment: React.FC = () => {
   const [error, setError] = useState('');
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [conversationId, setConversationId] = useState('');
+  const resultRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (result) {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [result]);
 
   const candidates = useMemo(() => {
     const list = schema?.candidateStandards?.length
@@ -342,9 +349,9 @@ export const ProductAssessment: React.FC = () => {
             )}
 
             {result && (
-              <section aria-live="polite" className="rounded-2xl border border-emerald-300/20 bg-emerald-50 p-5 sm:p-7">
+              <section ref={resultRef} aria-live="polite" className="scroll-mt-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm sm:p-7">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="h-5 w-5" /><h2 className="text-lg font-semibold text-slate-900">Assessment response</h2></div>
+                  <div className="flex items-center gap-2 text-emerald-700"><CheckCircle2 className="h-5 w-5" /><h2 className="text-lg font-semibold text-slate-900">03 / Assessment results</h2></div>
                   {typeof result.confidence === 'number' && <span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-400">Evidence confidence: {Math.round(result.confidence * 100)}%</span>}
                 </div>
                 {result.insufficient_evidence && <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">The knowledge base indicates that evidence is insufficient for a confident conclusion.</p>}
