@@ -170,21 +170,7 @@ When testing webhooks locally, expose the backend through an HTTPS tunnel such a
 
 ### Conversational questionnaire screenshots
 
-These screenshots are from a development test of the WhatsApp interactive-list alternative. Users select details step by step; the collected answers are then sent to the RAG assistant.
-
-#### 1. Selectable product questions
-
-![WhatsApp product questionnaire options](docs/screenshots/whatsapp-question-options.jpg)
-
-#### 2. Multi-step questionnaire in progress
-
-![WhatsApp product questionnaire progress](docs/screenshots/whatsapp-questionnaire-progress.jpg)
-
-#### 3. RAG response after questionnaire completion
-
-![WhatsApp RAG response for a water bottle query](docs/screenshots/whatsapp-rag-response.jpg)
-
-In this test, the RAG assistant reported that the indexed knowledge base did not contain specific mandatory conformity-assessment or testing records for water bottles. It did not invent a specific BIS requirement and recommended checking official BIS sources. Treat this as a test demonstration, not a final regulatory determination.
+The screenshot files previously referenced here are not present in the `main` branch, so the broken image links have been removed. Add the screenshot files to `Bis_model3/docs/screenshots/` and restore the Markdown image links once those files have been committed.
 
 ### Dynamic WhatsApp Flow status
 
