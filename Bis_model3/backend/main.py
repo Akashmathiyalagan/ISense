@@ -512,7 +512,8 @@ def health_check():
         "production_ready": True,
         "storage": "persistent_json",
         "active_clients": len(broadcaster.active_websockets) + len(broadcaster.sse_queues),
-        "knowledge_base_chunks": len(rag_engine.chunks)
+        "knowledge_base_chunks": len(rag_engine.chunks),
+        "published_standards_catalogue": rag_engine.catalogue.status()
     }
 
 # Server-Sent Events (SSE) for Real-Time UI Streaming
