@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   FileText,
   Search,
+  Sparkles,
   CheckSquare,
   FolderOpen,
   Bot,
@@ -34,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const navLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/applications', label: 'Applications', icon: FileText },
+    { to: '/product-assessment', label: 'Product Assessment', icon: Sparkles, badge: 'AI' },
     { to: '/standards', label: 'BIS Standards', icon: Search },
     { to: '/requirements', label: 'Requirements', icon: CheckSquare },
     { to: '/documents', label: 'Documents', icon: FolderOpen },
