@@ -12,37 +12,12 @@ from typing import Any, Dict, List, Optional
 from rag.product_questionnaire import build_questionnaire
 
 
+# Legacy fallback retained only for sessions created before dynamic schemas were stored.
+# New sessions use research-driven schemas built from BIS catalogue candidates and scope evidence.
 QUESTION_SETS: Dict[str, List[Dict[str, Any]]] = {
-    "water_bottle": [
-        {"key": "material", "prompt": "What is the main material?", "list_title": "Choose material", "choices": ["Stainless steel", "Plastic", "Glass", "Aluminium", "Other / not sure"]},
-        {"key": "capacity", "prompt": "What is its capacity?", "list_title": "Choose capacity", "choices": ["250 ml or less", "251–750 ml", "751 ml–1 litre", "Above 1 litre", "Not sure"]},
-        {"key": "insulation", "prompt": "Is it insulated?", "list_title": "Insulation", "choices": ["Insulated", "Non-insulated", "Not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
-    ],
-    "backpack": [
-        {"key": "bag_type", "prompt": "What kind of bag is it?", "list_title": "Bag type", "choices": ["School backpack", "Laptop backpack", "Travel backpack", "Trekking backpack", "Other / not sure"]},
-        {"key": "material", "prompt": "What is the main material?", "list_title": "Choose material", "choices": ["Textile / fabric", "Leather", "Synthetic / plastic", "Mixed materials", "Other / not sure"]},
-        {"key": "intended_user", "prompt": "Who is it mainly designed for?", "list_title": "Intended user", "choices": ["Children / school use", "Adults", "All ages", "Not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
-    ],
-    "rc_car": [
-        {"key": "vehicle_type", "prompt": "What type of RC car is it?", "list_title": "Vehicle type", "choices": ["Toy RC car", "Hobby / model vehicle", "Other / not sure"]},
-        {"key": "power_source", "prompt": "How is it powered?", "list_title": "Power source", "choices": ["Rechargeable battery", "Replaceable batteries", "No battery / other", "Not sure"]},
-        {"key": "intended_age", "prompt": "Who is it intended for?", "list_title": "Age group", "choices": ["Under 3 years", "3 to 8 years", "Above 8 years", "Adult hobby use", "Not sure"]},
-        {"key": "material", "prompt": "What is the main body material?", "choices": ["Plastic", "Metal", "Mixed materials", "Not sure"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Toy safety / testing", "Marking / labelling", "All of these"]},
-    ],
     "general": [
-        {"key": "product_type", "prompt": "Which product type describes it best?", "list_title": "Product type", "choices": ["Electrical / electronic", "Household product", "Toy / children's product", "Food-contact product", "Textile / bag", "Other / not sure"]},
-        {"key": "material", "prompt": "What is its main material?", "choices": ["Metal", "Plastic", "Textile / fabric", "Glass / ceramic", "Mixed materials", "Other / not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
+        {"key": "product_type", "prompt": "What exact product type or model is this?", "choices": [], "input_type": "text"},
+        {"key": "intended_use", "prompt": "What is the product designed to be used for?", "list_title": "Intended use?", "choices": ["Household / consumer", "Office / workplace", "School / institutional", "Children / toy", "Commercial / industrial", "Medical / specialist", "Other / not sure"], "input_type": "radio"},
     ],
 }
 
