@@ -8,6 +8,7 @@ class FakeSchemaProvider:
     """A provider stand-in proving custom products can receive generated questions."""
 
     def generate(self, query, system_instruction, retrieved_chunks, application_context=None):
+        self.last_query = query
         schema = {
             "title": "Industrial gloves",
             "fields": [
@@ -127,3 +128,54 @@ def test_questionnaire_can_be_cancelled(tmp_path):
     assert result["handled"] is True
     assert result["cancelled"] is True
     assert bot.has_session("user-4") is False
+
+
+class FakeCatalogue:
+    def __init__(self, rows):
+        self.rows = rows
+        self.last_query = None
+
+    def search(self, query, top_k=5):
+        self.last_query = query
+        return self.rows[:top_k]
+
+
+def test_questionnaire_prompt_is_grounded_in_catalogue_candidates_and_scope_excerpts(tmp_path):
+    provider = FakeSchemaProvider()
+    catalogue = FakeCatalogue([
+        {
+            "is_number": "IS 17631:2022",
+            "title": "Work Chairs — Specification",
+            "technical_department": "Civil Engineering",
+            "standard_type": "Product Specification",
+        },
+        {
+            "is_number": "IS 17632:2022",
+            "title": "General Purpose Chairs and Stools",
+            "technical_department": "Civil Engineering",
+            "standard_type": "Product Specification",
+        },
+    ])
+    scope = SimpleNamespace(
+        standard_code="IS 17631:2022",
+        standard_title="Work Chairs — Specification",
+        clause="Scope",
+        content="Applies to work chairs; check exclusions and product scope.",
+        source_url="https://www.bis.gov.in/example-work-chair-manual.pdf",
+        verification_status="verified_official_record",
+    )
+    bot = WhatsAppProductQuestionnaire(str(tmp_path / "chair-sessions.json"))
+    started = bot.start(
+        "chair-user",
+        "chair",
+        llm_provider=provider,
+        catalogue=catalogue,
+        scope_evidence=[scope],
+    )
+
+    assert catalogue.last_query == "chair"
+    assert "IS 17631:2022: Work Chairs — Specification" in provider.last_query
+    assert "IS 17632:2022: General Purpose Chairs and Stools" in provider.last_query
+    assert "Applies to work chairs" in provider.last_query
+    assert "not proof that a standard applies" in provider.last_query
+    assert started["total_questions"] == 3
