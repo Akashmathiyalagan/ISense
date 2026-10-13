@@ -81,12 +81,13 @@ def test_arbitrary_product_uses_generated_product_specific_questions(tmp_path):
     assert "After retrieval, answer in this order" not in result["rag_query"]
 
 
-def test_fallback_questionnaire_handles_water_bottle_and_finishes(tmp_path):
+def test_fallback_questionnaire_uses_compact_product_identification_and_finishes(tmp_path):
     bot = WhatsAppProductQuestionnaire(str(tmp_path / "sessions.json"))
     first = bot.start("user-2", "water bottle")
     assert first["handled"] is True
-    assert first["total_questions"] >= 2
-    assert first["options"]
+    assert 2 <= first["total_questions"] <= 3
+    assert first["input_type"] == "text"
+    assert "kind or model" in first["question"].lower()
 
     questions = list(bot._sessions["user-2"]["questions"])
     result = first
