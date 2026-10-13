@@ -334,7 +334,7 @@ class WhatsAppProductQuestionnaire:
 
         product = session.get("product_name", "product")
         answers = session.get("answers", {})
-        answer_context = "\\n".join(
+        answer_context = "\n".join(
             f"- {key.replace('_', ' ')}: {value}" for key, value in answers.items()
         )
         retrieval_query = (
@@ -362,7 +362,7 @@ class WhatsAppProductQuestionnaire:
                 })
         if catalogue is not None:
             try:
-                candidates = catalogue.search(product + "\\n" + answer_context, top_k=8)
+                candidates = catalogue.search(product + "\n" + answer_context, top_k=8)
                 session["catalogue_candidates"] = candidates
             except Exception:
                 pass
@@ -404,7 +404,7 @@ class WhatsAppProductQuestionnaire:
             if not getattr(result, "is_success", False):
                 return None
             raw = str(getattr(result, "text", "") or "").strip()
-            raw = re.sub(r"^\x60\x60\x60(?:json)?\\s*|\\s*\x60\x60\x60$", "", raw, flags=re.IGNORECASE)
+            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE)
             left, right = raw.find("{"), raw.rfind("}")
             if left < 0 or right <= left:
                 return None
