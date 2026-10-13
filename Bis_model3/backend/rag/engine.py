@@ -347,7 +347,7 @@ class BISRAGEngine:
                     chunk=chunk,
                     dense_score=0.0,
                     bm25_score=float(hit.get("score") or 0.0),
-                    hybrid_score=min(0.19, max(0.0, float(hit.get("score") or 0.0) / 100.0)),
+                    hybrid_score=min(0.19, max(0.0, float(hit.get("score") or 0.0) * 0.19)),
                     match_type="catalogue_metadata",
                 )
             )
