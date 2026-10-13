@@ -55,24 +55,41 @@ The actual capabilities available depend on the configured environment, indexed 
 ~~~mermaid
 %%{init: {"theme":"dark","themeVariables":{"background":"#0d1117","primaryColor":"#17191f","primaryTextColor":"#f8fafc","primaryBorderColor":"#73777f","lineColor":"#c4c7ce","secondaryColor":"#17191f","tertiaryColor":"#17191f","fontFamily":"Arial"}}}%%
 flowchart TD
-    U[User] --> UI[ISense Web<br/>Interface]
-    U --> WA[WhatsApp<br/>integration in<br/>progress]
+    U[User] --> UI[ISense Web Interface]
+    U --> WA[WhatsApp Interface]
 
-    UI --> API[FastAPI Backend]
-    API --> Q[Query and<br/>standard detection]
-    Q --> R[Hybrid retrieval]
+    UI --> P[Enter Product Details]
+    WA --> PWA[Send Product Query]
+    P --> API[FastAPI Backend]
+    PWA --> API
 
-    R --> KB[Indexed BIS-<br/>related documents]
-    KB --> R
-    R --> G[Grounded<br/>answer generation]
-    G --> C[Answer and<br/>available source<br/>metadata]
+    API --> Q[Product and Standard Detection]
+    Q --> D[Collect Product Attributes]
+    D --> QUEST[Generate Product-Specific Questions]
+    QUEST --> ANS[Collect User Answers]
+    ANS --> RET[Hybrid RAG Retrieval]
 
-    C --> UI
-    C --> WA
+    RET <--> KB[Indexed BIS-Related Documents]
+    RET --> CAT[BIS Standards Catalogue Lookup]
+    KB --> E[Relevant Passages and Source Metadata]
+    CAT --> E
+
+    E --> GEN[Grounded AI Answer Generation]
+    GEN --> RESULT[Assessment Results and Guidance]
+    RESULT --> UI
+    RESULT --> WA
+
+    UI --> REG[Product Registration]
+    RESULT --> REG
+    REG --> DETAILS[Collect Applicant and Manufacturer Details]
+    DETAILS --> MEDIA[Upload Product Photos and Video]
+    MEDIA --> APP[Create Application Record]
+    APP --> REVIEW[Review Supporting Documents]
+    REVIEW --> NEXT[Prepare for Compliance and Certification Steps]
 
     linkStyle default stroke:#c4c7ce,stroke-width:1.2px
     classDef node fill:#17191f,stroke:#73777f,color:#f8fafc,stroke-width:1.2px
-    class U,UI,WA,API,Q,R,KB,G,C node
+    class U,UI,WA,P,PWA,API,Q,D,QUEST,ANS,RET,KB,CAT,E,GEN,RESULT,REG,DETAILS,MEDIA,APP,REVIEW,NEXT node
 ~~~
 
 ## WhatsApp Questionnaire Screenshots
