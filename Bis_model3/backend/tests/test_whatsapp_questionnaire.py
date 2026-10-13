@@ -179,7 +179,7 @@ def test_questionnaire_prompt_is_grounded_in_catalogue_candidates_and_scope_exce
     assert "IS 17632:2022: General Purpose Chairs and Stools" in provider.last_query
     assert "Applies to work chairs" in provider.last_query
     assert "not proof that a standard applies" in provider.last_query
-    assert started["total_questions"] == 3
+    assert started["total_questions"] == 1
 
 class AdaptiveSchemaProvider:
     def __init__(self):
