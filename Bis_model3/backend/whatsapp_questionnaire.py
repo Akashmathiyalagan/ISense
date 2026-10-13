@@ -97,9 +97,19 @@ def _short_picker_title(field_id: str, label: str) -> str:
     return (cleaned[:19] + "?")[:20] if cleaned else "Choose answer"
 
 
-def _questions_from_schema(product_name: str, llm_provider: Any = None) -> List[Dict[str, Any]]:
-    """Use Gemini-generated product-specific fields; sanitize them for WhatsApp list/text UX."""
-    schema = build_questionnaire(product_name, llm_provider)
+def _questions_from_schema(
+    product_name: str,
+    llm_provider: Any = None,
+    catalogue_candidates: Optional[List[Dict[str, Any]]] = None,
+    scope_evidence: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Generate clarification fields from matching BIS candidates and indexed scope excerpts."""
+    schema = build_questionnaire(
+        product_name,
+        llm_provider,
+        catalogue_candidates=catalogue_candidates or [],
+        scope_evidence=scope_evidence or [],
+    )
     result: List[Dict[str, Any]] = []
     for field in schema.get("fields", [])[:8]:
         if not isinstance(field, dict):
@@ -218,19 +228,46 @@ class WhatsAppProductQuestionnaire:
         sender_id: str,
         product_name: str,
         llm_provider: Any = None,
+        catalogue: Any = None,
+        scope_evidence: Optional[List[Any]] = None,
     ) -> Dict[str, Any]:
         name = " ".join((product_name or "").split())[:120] or "unspecified product"
         category = classify_product(name)
-        # The website and WhatsApp use the same validated Gemini questionnaire
-        # generator, so any product can receive tailored follow-up questions.
-        questions = _questions_from_schema(name, llm_provider)
+
+        # Research first, ask second: collect candidate standards by the entered
+        # product name and scope excerpts from the existing regulatory index.
+        catalogue_candidates: List[Dict[str, Any]] = []
+        if catalogue is not None:
+            try:
+                catalogue_candidates = catalogue.search(name, top_k=8)
+            except Exception:
+                catalogue_candidates = []
+
+        evidence_rows: List[Dict[str, Any]] = []
+        for chunk in (scope_evidence or [])[:6]:
+            evidence_rows.append({
+                "standard_code": getattr(chunk, "standard_code", ""),
+                "standard_title": getattr(chunk, "standard_title", ""),
+                "clause": getattr(chunk, "clause", ""),
+                "text": getattr(chunk, "content", ""),
+                "source_url": getattr(chunk, "source_url", ""),
+                "verification_status": getattr(chunk, "verification_status", ""),
+            })
+
+        questions = _questions_from_schema(
+            name,
+            llm_provider,
+            catalogue_candidates=catalogue_candidates,
+            scope_evidence=evidence_rows,
+        )
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
                 "category": category,
                 "answers": {},
                 "questions": questions,
-                "questionnaire_source": "gemini_or_validated_fallback",
+                "catalogue_candidates": catalogue_candidates,
+                "questionnaire_source": "candidate_aware_gemini_or_fallback",
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -321,7 +358,7 @@ class WhatsAppProductQuestionnaire:
     def _to_rag_query(session: Dict[str, Any]) -> str:
         """Build a user-facing regulatory query; response policy belongs in the RAG system prompt."""
         questions = _questions_for_session(session)
-        labels = {q["key"]: q.get("label") or q.get("prompt", q["key"].replace("_", " ").title()) for q in questions}
+        labels = {q["key"]: q.get("label") or q["key"].replace("_", " ").title() for q in questions}
         lines = [
             f"Please assess the BIS requirements for this exact product: {session.get('product_name', 'unspecified product')}.",
             "Product details supplied by the user:",
@@ -350,6 +387,15 @@ class WhatsAppProductQuestionnaire:
                 "The user's answers describe an adult hobby/collector model. Check this product-scope distinction carefully; "
                 "do not automatically apply children's-toy standards or the toy QCO."
             )
+        candidates = session.get("catalogue_candidates", [])
+        if candidates:
+            lines.append("Initial BIS catalogue candidates (number/title metadata only; re-check scope and current status):")
+            for item in candidates[:8]:
+                lines.append(f"- {item.get('is_number')}: {item.get('title')}")
+        lines.append(
+            "Treat the candidate list as search hints only. Re-check all likely standards against detailed scope documents and current QCO/order evidence. "
+            "Do not assume a candidate applies only because its title is similar."
+        )
         return "\n".join(lines)
 
 
