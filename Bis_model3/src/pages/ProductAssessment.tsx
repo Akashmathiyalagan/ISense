@@ -192,8 +192,8 @@ export const ProductAssessment: React.FC = () => {
         manufacturer,
         countryOfOrigin,
         description: `Product submitted through ISense assessment. Assessment summary: ${result?.content || 'Assessment completed'}`,
-        standardCode: candidates[0]?.is_number || 'Under Determination',
-        standardTitle: candidates[0]?.title || 'Standard applicability under verification',
+        standardCode: 'Under Determination',
+        standardTitle: 'Standard applicability under verification',
         applicantName,
         applicantEmail,
       });
