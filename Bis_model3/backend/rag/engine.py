@@ -449,7 +449,7 @@ class BISRAGEngine:
         )
 
         # Calculate calibrated evidence confidence score (0.0 to 1.0)
-        top_scores = [r.hybrid_score for r in retrieval_results[:2]]
+        top_scores = [r.hybrid_score for r in regulatory_results[:2]]
         avg_top_score = sum(top_scores) / len(top_scores) if top_scores else 0.0
         calibrated_confidence = round(min(avg_top_score / 1.5, 0.99), 2)
         sources_out = [c.model_dump() for c in citations]
