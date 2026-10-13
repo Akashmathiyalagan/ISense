@@ -334,12 +334,12 @@ class WhatsAppProductQuestionnaire:
 
         product = session.get("product_name", "product")
         answers = session.get("answers", {})
-        answer_context = "\n".join(
+        answer_context = "\\n".join(
             f"- {key.replace('_', ' ')}: {value}" for key, value in answers.items()
         )
         retrieval_query = (
             f"{product} product scope intended use design construction exclusions "
-            f"Indian Standard Quality Control Order\n{answer_context}"
+            f"Indian Standard Quality Control Order\\n{answer_context}"
         )
 
         engine = session.get("rag_engine")
@@ -362,7 +362,7 @@ class WhatsAppProductQuestionnaire:
                 })
         if catalogue is not None:
             try:
-                candidates = catalogue.search(product + "\n" + answer_context, top_k=8)
+                candidates = catalogue.search(product + "\\n" + answer_context, top_k=8)
                 session["catalogue_candidates"] = candidates
             except Exception:
                 pass
@@ -376,15 +376,15 @@ class WhatsAppProductQuestionnaire:
             "Candidate standard titles are search hints; retrieved official scope excerpts are evidence. "
             "Ask only for a fact that would materially distinguish remaining candidate scopes or resolve a meaningful uncertainty. "
             "Do not repeat a prior field. Do not ask for the standard number, manufacturing origin, business activity, capacity, dimensions, "
-            "or voltage unless the supplied official evidence makes that detail relevant. "
-            "If no additional clarification is needed, or evidence cannot justify another question, return {\"done\": true}. "
-            "Otherwise return {\"done\": false, \"field\": {\"id\": \"snake_case\", \"label\": \"short user-facing question\", "
-            "\"type\": \"radio\" or \"text\", \"options\": [\"Option A\", \"Option B\", \"Not sure\"], "
-            "\"required\": true, \"helpText\": \"brief reason\"}}. For radio fields, use 2–6 plain-language answers. "
-            "Return JSON only. Never claim a standard applies or certification is mandatory.\n\n"
-            f"PRODUCT: {product}\nANSWERS SO FAR:\n{answer_context}\n"
-            f"CATALOGUE CANDIDATES (metadata only): {json.dumps(candidates[:8], ensure_ascii=False)[:5000]}\n"
-            f"OFFICIAL SCOPE EXCERPTS: {json.dumps(evidence_rows[:8], ensure_ascii=False)[:9000]}\n"
+            "or voltage unless supplied official evidence makes the detail relevant. "
+            "If no additional clarification is needed, or evidence cannot justify another question, return {\\\\"done\\\\": true}. "
+            "Otherwise return {\\\\"done\\\\": false, \\\\"field\\\\": {\\\\"id\\\\": \\\\"snake_case\\\\", \\\\"label\\\\": \\\\"short question\\\\", "
+            "\\\\"type\\\\": \\\\"radio\\\\ or \\\\text\\\\", \\\\"options\\\\": [\\\\"Option A\\\\", \\\\"Option B\\\\", \\\\"Not sure\\\\"], "
+            "\\\\\"required\\\\": true, \\\\"helpText\\\\": \\\\"brief reason\\\\}}. For radio, use 2–6 plain-language answers. "
+            "Return JSON only. Never claim that a standard applies or certification is mandatory.\\n\\n"
+            f"PRODUCT: {product}\\nANSWERS SO FAR:\\n{answer_context}\\n"
+            f"CATALOGUE CANDIDATES (metadata only): {json.dumps(candidates[:8], ensure_ascii=False)[:5000]}\\n"
+            f"OFFICIAL SCOPE EXCERPTS: {json.dumps(evidence_rows[:8], ensure_ascii=False)[:9000]}\\n"
             f"ALREADY ASKED: {sorted(asked)}"
         )
         try:
@@ -405,7 +405,7 @@ class WhatsAppProductQuestionnaire:
             if not getattr(result, "is_success", False):
                 return None
             raw = str(getattr(result, "text", "") or "").strip()
-            raw = re.sub(r"^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$", "", raw, flags=re.IGNORECASE)
+            raw = re.sub(r"^\x60\x60\x60(?:json)?\\s*|\\s*\x60\x60\x60$", "", raw, flags=re.IGNORECASE)
             left, right = raw.find("{"), raw.rfind("}")
             if left < 0 or right <= left:
                 return None
@@ -415,7 +415,6 @@ class WhatsAppProductQuestionnaire:
             field = decision.get("field")
             if not isinstance(field, dict):
                 return None
-
             field_id = re.sub(r"[^a-zA-Z0-9_]+", "_", str(field.get("id", ""))).strip("_").lower()[:40]
             label = " ".join(str(field.get("label", "")).split())[:180]
             if not field_id or not label or field_id in asked:
