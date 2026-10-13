@@ -6,6 +6,7 @@ regulatory evidence.
 """
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -239,7 +240,7 @@ class WhatsAppProductQuestionnaire:
                 llm_provider,
                 catalogue_candidates=catalogue_candidates,
                 scope_evidence=evidence_rows,
-            )[:1]
+            )
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
