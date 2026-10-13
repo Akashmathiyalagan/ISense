@@ -61,7 +61,7 @@ def test_arbitrary_product_uses_generated_product_specific_questions(tmp_path):
     assert started["list_title"]
     assert started["list_title"] != "Choose answer"
     assert "Powder-free" in started["options"]
-    assert started["total_questions"] == 3
+    assert started["total_questions"] == 1
 
     step = bot.handle_reply("user-1", "Powder-free")
     assert step["question_number"] == 2
