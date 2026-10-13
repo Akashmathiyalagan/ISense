@@ -27,7 +27,10 @@ def _field(field_id: str, label: str, input_type: str, options: Optional[List[st
     }
 
 
-def fallback_questionnaire(product: str) -> Dict[str, Any]:
+def fallback_questionnaire(
+    product: str,
+    catalogue_candidates: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """Safe offline questionnaire; common products get tailored questions.
 
     For products not recognised here, the generic questions still collect
@@ -36,6 +39,50 @@ def fallback_questionnaire(product: str) -> Dict[str, Any]:
     """
     p = product.lower()
     fields: List[Dict[str, Any]] = []
+
+    candidates = [
+        item for item in (catalogue_candidates or [])
+        if isinstance(item, dict) and item.get("is_number") and item.get("title")
+    ]
+    if candidates:
+        choices = []
+        for item in candidates[:6]:
+            option = f"{item['title']} ({item['is_number']})"
+            if option not in choices:
+                choices.append(option[:100])
+        if len(choices) >= 2:
+            fields.append(_field(
+                "candidate_product_scope",
+                f"Which BIS catalogue description is closest to your {product.strip()}?",
+                "radio",
+                choices + ["None of these / not sure"],
+                True,
+                "These are catalogue-title matches only, not a determination that a standard applies. Choose the closest product description.",
+            ))
+            fields.append(_field(
+                "product_subtype",
+                f"What specific type or model of {product.strip()} do you have?",
+                "text",
+                [],
+                True,
+                "Describe its design, construction, model or purpose so ISense can distinguish the candidate scopes.",
+            ))
+            fields.append(_field(
+                "intended_use",
+                "What is the intended use and user group?",
+                "radio",
+                ["Household / consumer", "Office / institutional", "Children / toy", "Commercial / industrial", "Medical / specialist", "Other / not sure"],
+                True,
+            ))
+            return {
+                "product": product.strip(),
+                "title": f"Clarify the BIS scope for {product.strip()}",
+                "description": "ISense found catalogue candidates. Your answers help distinguish their product scopes; the catalogue itself does not establish applicability.",
+                "fields": fields[:MAX_FIELDS],
+                "schema_source": "catalogue_aware_fallback",
+                "catalogue_candidates": candidates[:6],
+                "redirectPath": f"/apps?product={quote(product.strip())}",
+            }
 
     if any(x in p for x in ("water bottle", "bottle", "flask", "thermos")):
         fields.extend([
@@ -148,21 +195,60 @@ def _parse_schema(raw: str, product: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def build_questionnaire(product: str, llm_provider: Any = None) -> Dict[str, Any]:
+def build_questionnaire(
+    product: str,
+    llm_provider: Any = None,
+    catalogue_candidates: Optional[List[Dict[str, Any]]] = None,
+    scope_evidence: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     product = " ".join((product or "").split())[:120]
     if not product:
         raise ValueError("Product name is required")
     if llm_provider is not None:
         provider_name = type(llm_provider).__name__
         if provider_name not in {"UnavailableLLMProvider"}:
+            candidates = [
+                item for item in (catalogue_candidates or [])
+                if isinstance(item, dict) and item.get("is_number") and item.get("title")
+            ][:8]
+            evidence = [
+                item for item in (scope_evidence or [])
+                if isinstance(item, dict) and item.get("text")
+            ][:6]
+            candidate_block = "\n".join(
+                f"- {item.get('is_number')}: {item.get('title')} "
+                f"(department: {item.get('technical_department') or 'not supplied'}; "
+                f"type: {item.get('standard_type') or 'not supplied'}; "
+                "metadata only; applicability not established)"
+                for item in candidates
+            ) or "No matching catalogue title was found."
+            evidence_block = "\n".join(
+                f"- {item.get('standard_code', 'Standard not labelled')} — "
+                f"{item.get('standard_title', 'Title not supplied')} / "
+                f"{item.get('clause', 'scope not labelled')}: "
+                f"{str(item.get('text', ''))[:650]} "
+                f"(source: {item.get('source_url', 'URL not supplied')})"
+                for item in evidence
+            ) or "No matching indexed scope excerpts were available."
+
             prompt = (
-                f"Create an intake questionnaire for the product: {product!r}. "
-                "Return ONLY JSON with keys title and fields. Generate 4 to 6 relevant fields for identifying product attributes "
-                "that may affect BIS standard or certification-route research. Include material/construction, intended use, "
-                "relevant size/capacity/rating if applicable, manufacturing origin, and the user's BIS-help goal where relevant. "
-                "Do not state or infer any standard, QCO, mandatory certification, fee, or legal requirement. "
-                "Each field must have id, label, type (checkbox, radio, or text), options (2-8 options for checkbox/radio, empty for text), "
-                "required (boolean), and helpText. Make choices product-specific, not generic electrical choices for non-electrical products."
+                f"User entered this product name: {product!r}.\\n\\n"
+                "FIRST REVIEW THE MATCHING BIS CATALOGUE RECORDS AND AVAILABLE OFFICIAL SCOPE EXCERPTS BELOW. "
+                "The catalogue entries are only number/title metadata, not proof that a standard applies.\\n\\n"
+                f"CATALOGUE CANDIDATES:\\n{candidate_block}\\n\\n"
+                f"AVAILABLE OFFICIAL SCOPE EVIDENCE:\\n{evidence_block}\\n\\n"
+                "Generate a SHORT, product-specific clarification questionnaire that helps distinguish the competing candidate scopes. "
+                "This is not a fixed generic form. Use the differences between the candidate titles and supplied scope excerpts to decide "
+                "which attributes actually discriminate between them. If no candidates were found, ask a small number of questions to identify "
+                "the product subtype and intended use before standards research continues. "
+                "Generate only 2 to 5 fields, and do not ask the user to select a standard number they are unlikely to understand. "
+                "Ask about subtype, intended user/use, construction/material, performance/rating, installation/environment, or other attributes "
+                "ONLY when relevant to this product and candidate scope. Avoid asking generic questions about origin, business role, or desired help "
+                "unless those facts are needed for the requested route. Do not ask for facts already clear from the product name. "
+                "Never invent an IS number, title, clause, test or regulatory requirement, and never assert that a candidate is applicable or mandatory. "
+                "Return ONLY JSON with keys title and fields. Each field must have id, label, type (radio, checkbox, or text), "
+                "options (2-8 concise options for radio/checkbox, empty for text), required (boolean), and helpText. "
+                "Use clear, professional, easy-to-answer language."
             )
             try:
                 result = llm_provider.generate(
@@ -180,4 +266,4 @@ def build_questionnaire(product: str, llm_provider: Any = None) -> Dict[str, Any
                         return parsed
             except Exception:
                 pass
-    return fallback_questionnaire(product)
+    return fallback_questionnaire(product, catalogue_candidates=catalogue_candidates)
