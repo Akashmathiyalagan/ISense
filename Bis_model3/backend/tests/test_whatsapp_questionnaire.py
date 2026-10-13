@@ -180,3 +180,79 @@ def test_questionnaire_prompt_is_grounded_in_catalogue_candidates_and_scope_exce
     assert "Applies to work chairs" in provider.last_query
     assert "not proof that a standard applies" in provider.last_query
     assert started["total_questions"] == 3
+
+class AdaptiveSchemaProvider:
+    def __init__(self):
+        self.calls = 0
+        self.last_query = ""
+
+    def generate(self, query, system_instruction, retrieved_chunks, application_context=None):
+        self.calls += 1
+        self.last_query = query
+        if self.calls == 1:
+            schema = {
+                "title": "Chair classification",
+                "fields": [
+                    {"id": "chair_subtype", "label": "What kind of chair is it?", "type": "text", "options": [], "required": True, "helpText": ""},
+                    {"id": "intended_use", "label": "What is it designed to be used for?", "type": "radio", "options": ["Office work", "General seating", "Other / not sure"], "required": True, "helpText": ""}
+                ],
+            }
+        else:
+            schema = {
+                "done": False,
+                "field": {
+                    "id": "chair_construction",
+                    "label": "Does the chair have a special design or adjustment mechanism?",
+                    "type": "radio",
+                    "options": ["Height-adjustable work chair", "Fixed general-purpose chair", "Other / not sure"],
+                    "required": True,
+                    "helpText": "This may help distinguish the remaining product scopes.",
+                },
+            }
+        return SimpleNamespace(is_success=True, text=json.dumps(schema))
+
+
+def test_adaptive_interview_generates_next_question_after_answer_and_refreshes_research(tmp_path):
+    provider = AdaptiveSchemaProvider()
+    catalogue = FakeCatalogue([
+        {"is_number": "IS 17631:2022", "title": "Work Chairs — Specification"},
+        {"is_number": "IS 17632:2022", "title": "General Purpose Chairs and Stools"},
+    ])
+
+    class FakeEngine:
+        def __init__(self):
+            self.queries = []
+
+        def retrieve(self, query, top_k=8):
+            self.queries.append(query)
+            return [SimpleNamespace(
+                standard_code="IS 17631:2022",
+                standard_title="Work Chairs — Specification",
+                clause="Scope",
+                content="Scope excerpt for work chairs.",
+                source_url="https://www.bis.gov.in/",
+                verification_status="verified_official_record",
+            )]
+
+    engine = FakeEngine()
+    bot = WhatsAppProductQuestionnaire(str(tmp_path / "adaptive.json"))
+    first = bot.start(
+        "adaptive-user",
+        "chair",
+        llm_provider=provider,
+        catalogue=catalogue,
+        scope_evidence=[],
+        rag_engine=engine,
+    )
+    assert first["question_number"] == 1
+    assert first["total_questions"] == 1
+    assert "chair_subtype" in bot._sessions["adaptive-user"]["questions"][0]["key"]
+
+    second = bot.handle_reply("adaptive-user", "office chair")
+    assert second["handled"] is True
+    assert second["question_number"] == 2
+    assert second["total_questions"] == "adaptive"
+    assert "special design" in second["question"].lower()
+    assert engine.queries
+    assert "office chair" in engine.queries[-1]
+    assert "ALREADY ASKED" in provider.last_query
