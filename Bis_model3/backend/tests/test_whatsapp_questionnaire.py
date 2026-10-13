@@ -5,22 +5,49 @@ from whatsapp_questionnaire import WhatsAppProductQuestionnaire, classify_produc
 
 
 class FakeSchemaProvider:
-    """A provider stand-in proving custom products can receive generated questions."""
+    """Provider stub supporting both initial schemas and adaptive follow-up questions."""
+
+    def __init__(self):
+        self.calls = 0
+        self.last_query = ""
 
     def generate(self, query, system_instruction, retrieved_chunks, application_context=None):
+        self.calls += 1
         self.last_query = query
-        schema = {
-            "title": "Industrial gloves",
-            "fields": [
-                {
-                    "id": "glove_coating",
-                    "label": "What coating or finish do the gloves have?",
-                    "type": "radio",
-                    "options": ["Powder-free", "Powdered", "Textured", "Not sure"],
-                    "required": True,
-                    "helpText": "Select the finish on the product specification.",
-                },
-                {
+        if self.calls == 1:
+            schema = {
+                "title": "Industrial gloves",
+                "fields": [
+                    {
+                        "id": "glove_coating",
+                        "label": "What coating or finish do the gloves have?",
+                        "type": "radio",
+                        "options": ["Powder-free", "Powdered", "Textured", "Not sure"],
+                        "required": True,
+                        "helpText": "Select the finish on the product specification.",
+                    },
+                    {
+                        "id": "application",
+                        "label": "What will the gloves be used for?",
+                        "type": "radio",
+                        "options": ["Medical examination", "Industrial handling", "Food handling", "Other"],
+                        "required": True,
+                        "helpText": "",
+                    },
+                    {
+                        "id": "model_details",
+                        "label": "Enter model, material and thickness if known.",
+                        "type": "text",
+                        "options": [],
+                        "required": False,
+                        "helpText": "Use details from the product datasheet.",
+                    },
+                ],
+            }
+        elif self.calls == 2:
+            schema = {
+                "done": False,
+                "field": {
                     "id": "application",
                     "label": "What will the gloves be used for?",
                     "type": "radio",
@@ -28,7 +55,11 @@ class FakeSchemaProvider:
                     "required": True,
                     "helpText": "",
                 },
-                {
+            }
+        elif self.calls == 3:
+            schema = {
+                "done": False,
+                "field": {
                     "id": "model_details",
                     "label": "Enter model, material and thickness if known.",
                     "type": "text",
@@ -36,8 +67,9 @@ class FakeSchemaProvider:
                     "required": False,
                     "helpText": "Use details from the product datasheet.",
                 },
-            ],
-        }
+            }
+        else:
+            schema = {"done": True}
         return SimpleNamespace(is_success=True, text=json.dumps(schema))
 
 
