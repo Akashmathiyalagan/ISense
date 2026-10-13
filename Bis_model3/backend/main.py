@@ -1520,6 +1520,11 @@ async def handle_whatsapp_webhook(
                                 from_number,
                                 text_body,
                                 llm_provider=getattr(rag_engine, "llm_provider", None),
+                                catalogue=getattr(rag_engine, "catalogue", None),
+                                scope_evidence=rag_engine.retrieve(
+                                    f"{text_body} product scope design intended use applicable Indian Standard",
+                                    top_k=6,
+                                ),
                             )
                         )
 
