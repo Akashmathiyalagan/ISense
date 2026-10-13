@@ -339,7 +339,7 @@ class WhatsAppProductQuestionnaire:
         )
         retrieval_query = (
             f"{product} product scope intended use design construction exclusions "
-            f"Indian Standard Quality Control Order\\n{answer_context}"
+            f"Indian Standard Quality Control Order\n{answer_context}"
         )
 
         engine = session.get("rag_engine")
