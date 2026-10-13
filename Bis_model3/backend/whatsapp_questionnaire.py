@@ -286,14 +286,35 @@ class WhatsAppProductQuestionnaire:
                 return {"handled": False}
 
             question = questions[index]
-            # List replies use the displayed title. Free-typed answers are accepted too.
-            session["answers"][question["key"]] = normalized[:160]
+            session.setdefault("answers", {})[question["key"]] = normalized[:160]
             session["index"] = index + 1
+            session.setdefault("asked_questions", []).append(question["key"])
 
-            # Recalculate after the answer: a choice such as Insulated can add a
-            # follow-up question, so do not compare against the old question count.
-            next_questions = _questions_for_session(session)
-            if session["index"] >= len(next_questions):
+            if session.get("adaptive_interview"):
+                next_question = self._generate_next_question(session)
+                if next_question is None:
+                    completed = self._sessions.pop(sender_id)
+                    self._save()
+                    return {
+                        "handled": True,
+                        "complete": True,
+                        "product_name": completed["product_name"],
+                        "category": completed["category"],
+                        "answers": completed["answers"],
+                        "rag_query": self._to_rag_query(completed),
+                        "message": "Thanks. I have enough product details to compare the relevant BIS sources. I’ll now check the evidence and prepare your guidance.",
+                    }
+                session["questions"] = [next_question]
+                session["index"] = 0
+                self._save()
+                result = self._current_question(sender_id, intro=False)
+                result["recorded_answer"] = normalized[:160]
+                result["handled"] = True
+                result["question_number"] = len(session["asked_questions"]) + 1
+                result["total_questions"] = "adaptive"
+                return result
+
+            if session["index"] >= len(questions):
                 completed = self._sessions.pop(sender_id)
                 self._save()
                 return {
@@ -311,6 +332,122 @@ class WhatsAppProductQuestionnaire:
             result["recorded_answer"] = normalized[:160]
             result["handled"] = True
             return result
+
+    def _generate_next_question(self, session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Re-query BIS evidence and generate at most one useful next question."""
+        max_questions = 5
+        asked = set(session.get("asked_questions", []))
+        if len(asked) >= max_questions:
+            return None
+
+        product = session.get("product_name", "product")
+        answers = session.get("answers", {})
+        answer_context = "\n".join(
+            f"- {key.replace('_', ' ')}: {value}" for key, value in answers.items()
+        )
+        retrieval_query = (
+            f"{product} product scope intended use design construction exclusions "
+            f"Indian Standard Quality Control Order\n{answer_context}"
+        )
+
+        engine = session.get("rag_engine")
+        catalogue = session.get("catalogue")
+        candidates = list(session.get("catalogue_candidates", []))
+        evidence_rows: List[Dict[str, Any]] = []
+        if engine is not None:
+            try:
+                retrieved = engine.retrieve(retrieval_query, top_k=8)
+            except Exception:
+                retrieved = []
+            for chunk in retrieved[:8]:
+                evidence_rows.append({
+                    "standard_code": getattr(chunk, "standard_code", ""),
+                    "standard_title": getattr(chunk, "standard_title", ""),
+                    "clause": getattr(chunk, "clause", ""),
+                    "text": getattr(chunk, "content", ""),
+                    "source_url": getattr(chunk, "source_url", ""),
+                    "verification_status": getattr(chunk, "verification_status", ""),
+                })
+        if catalogue is not None:
+            try:
+                candidates = catalogue.search(product + "\n" + answer_context, top_k=8)
+                session["catalogue_candidates"] = candidates
+            except Exception:
+                pass
+
+        provider = session.get("llm_provider")
+        if provider is None:
+            return None
+
+        prompt = (
+            "Choose exactly one next clarification question for a BIS product-scope interview. "
+            "Candidate standard titles are search hints; retrieved official scope excerpts are evidence. "
+            "Ask only for a fact that would materially distinguish remaining candidate scopes or resolve a meaningful uncertainty. "
+            "Do not repeat a prior field. Do not ask for the standard number, manufacturing origin, business activity, capacity, dimensions, "
+            "or voltage unless the supplied official evidence makes that detail relevant. "
+            "If no additional clarification is needed, or evidence cannot justify another question, return {\"done\": true}. "
+            "Otherwise return {\"done\": false, \"field\": {\"id\": \"snake_case\", \"label\": \"short user-facing question\", "
+            "\"type\": \"radio\" or \"text\", \"options\": [\"Option A\", \"Option B\", \"Not sure\"], "
+            "\"required\": true, \"helpText\": \"brief reason\"}}. For radio fields, use 2–6 plain-language answers. "
+            "Return JSON only. Never claim a standard applies or certification is mandatory.\n\n"
+            f"PRODUCT: {product}\nANSWERS SO FAR:\n{answer_context}\n"
+            f"CATALOGUE CANDIDATES (metadata only): {json.dumps(candidates[:8], ensure_ascii=False)[:5000]}\n"
+            f"OFFICIAL SCOPE EXCERPTS: {json.dumps(evidence_rows[:8], ensure_ascii=False)[:9000]}\n"
+            f"ALREADY ASKED: {sorted(asked)}"
+        )
+        try:
+            result = provider.generate(
+                query=prompt,
+                system_instruction=(
+                    "Return only a JSON decision for the next clarification question. "
+                    "Questions must be grounded in current user answers and supplied BIS evidence. "
+                    "Never determine legal applicability from catalogue title alone."
+                ),
+                retrieved_chunks=[],
+                application_context={
+                    "task": "adaptive_bis_product_interview",
+                    "product": product,
+                    "answers": answers,
+                },
+            )
+            if not getattr(result, "is_success", False):
+                return None
+            raw = str(getattr(result, "text", "") or "").strip()
+            raw = re.sub(r"^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$", "", raw, flags=re.IGNORECASE)
+            left, right = raw.find("{"), raw.rfind("}")
+            if left < 0 or right <= left:
+                return None
+            decision = json.loads(raw[left:right + 1])
+            if decision.get("done") is True:
+                return None
+            field = decision.get("field")
+            if not isinstance(field, dict):
+                return None
+
+            field_id = re.sub(r"[^a-zA-Z0-9_]+", "_", str(field.get("id", ""))).strip("_").lower()[:40]
+            label = " ".join(str(field.get("label", "")).split())[:180]
+            if not field_id or not label or field_id in asked:
+                return None
+
+            kind = str(field.get("type", "text")).lower()
+            options = field.get("options", [])
+            if kind == "radio" and isinstance(options, list):
+                options = list(dict.fromkeys(" ".join(str(v).split())[:100] for v in options if str(v).strip()))[:6]
+                if len(options) < 2:
+                    kind, options = "text", []
+            else:
+                kind, options = "text", []
+
+            return {
+                "key": field_id,
+                "prompt": label,
+                "list_title": _short_picker_title(field_id, label),
+                "choices": options,
+                "input_type": kind,
+                "help_text": " ".join(str(field.get("helpText", "")).split())[:240],
+            }
+        except Exception:
+            return None
 
     def _current_question(self, sender_id: str, intro: bool) -> Dict[str, Any]:
         session = self._sessions[sender_id]
