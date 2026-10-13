@@ -53,19 +53,26 @@ The actual capabilities available depend on the configured environment, indexed 
 ## Architecture
 
 ~~~mermaid
+%%{init: {"theme":"dark","themeVariables":{"background":"#0d1117","primaryColor":"#17191f","primaryTextColor":"#f8fafc","primaryBorderColor":"#73777f","lineColor":"#c4c7ce","secondaryColor":"#17191f","tertiaryColor":"#17191f","fontFamily":"Arial"}}}%%
 flowchart TD
-    U[User] --> UI[ISense Web Interface]
-    U --> WA[WhatsApp integration in progress]
+    U[User] --> UI[ISense Web<br/>Interface]
+    U --> WA[WhatsApp<br/>integration in<br/>progress]
+
     UI --> API[FastAPI Backend]
-    WA --> API
-    API --> Q[Query and standard detection]
+    API --> Q[Query and<br/>standard detection]
     Q --> R[Hybrid retrieval]
-    R --> KB[Indexed BIS-related documents]
+
+    R --> KB[Indexed BIS-<br/>related documents]
     KB --> R
-    R --> G[Grounded answer generation]
-    G --> C[Answer and available source metadata]
+    R --> G[Grounded<br/>answer generation]
+    G --> C[Answer and<br/>available source<br/>metadata]
+
     C --> UI
     C --> WA
+
+    linkStyle default stroke:#c4c7ce,stroke-width:1.2px
+    classDef node fill:#17191f,stroke:#73777f,color:#f8fafc,stroke-width:1.2px
+    class U,UI,WA,API,Q,R,KB,G,C node
 ~~~
 
 ## WhatsApp Questionnaire Screenshots
