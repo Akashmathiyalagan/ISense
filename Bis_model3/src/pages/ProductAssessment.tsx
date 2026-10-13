@@ -65,6 +65,15 @@ export const ProductAssessment: React.FC = () => {
   const [error, setError] = useState('');
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [conversationId, setConversationId] = useState('');
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [registrationBusy, setRegistrationBusy] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState('');
+  const [manufacturer, setManufacturer] = useState('');
+  const [countryOfOrigin, setCountryOfOrigin] = useState('India');
+  const [applicantName, setApplicantName] = useState('');
+  const [applicantEmail, setApplicantEmail] = useState('');
+  const [productPhotos, setProductPhotos] = useState<FileList | null>(null);
+  const [productVideo, setProductVideo] = useState<File | null>(null);
   const resultRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -167,6 +176,49 @@ export const ProductAssessment: React.FC = () => {
     }
   };
 
+  const registerProduct = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!schema) return;
+    if (!productPhotos?.length || !productVideo) {
+      setRegistrationMessage('Please upload at least one product photo and one product video.');
+      return;
+    }
+    setRegistrationBusy(true);
+    setRegistrationMessage('');
+    try {
+      const createResponse = await apiClient.post('/api/applications', {
+        productName: schema.product,
+        productCategory: schema.product,
+        manufacturer,
+        countryOfOrigin,
+        description: `Product submitted through ISense assessment. Assessment summary: ${result?.content || 'Assessment completed'}`,
+        standardCode: candidates[0]?.is_number || 'Under Determination',
+        standardTitle: candidates[0]?.title || 'Standard applicability under verification',
+        applicantName,
+        applicantEmail,
+      });
+      const appData = createResponse.data as any;
+      const applicationId = appData.id || appData.application?.id;
+      if (!applicationId) throw new Error('The application was created but no application ID was returned.');
+      const uploadOne = async (file: File, category: string) => {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('applicationId', applicationId);
+        form.append('category', category);
+        await apiClient.post('/api/documents/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      };
+      await Promise.all([
+        ...Array.from(productPhotos).map(file => uploadOne(file, 'Product Photo')),
+        uploadOne(productVideo, 'Product Video'),
+      ]);
+      setRegistrationMessage(`Product application ${applicationId} was created and the product media was uploaded successfully.`);
+    } catch (err) {
+      setRegistrationMessage(handleApiError(err));
+    } finally {
+      setRegistrationBusy(false);
+    }
+  };
+
   const reset = () => {
     setProduct('');
     setSchema(null);
@@ -174,6 +226,10 @@ export const ProductAssessment: React.FC = () => {
     setResult(null);
     setError('');
     setConversationId('');
+    setShowRegistration(false);
+    setRegistrationMessage('');
+    setProductPhotos(null);
+    setProductVideo(null);
   };
 
   return (
@@ -346,6 +402,40 @@ export const ProductAssessment: React.FC = () => {
                   </div>
                 </form>
               </>
+            )}
+
+            {result && !showRegistration && (
+              <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-7">
+                <h2 className="text-lg font-semibold text-slate-900">Next step: register your product</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Continue by creating an ISense product application. Add product photos and a short video so the submission can be reviewed. This does not itself issue BIS certification.</p>
+                <button type="button" onClick={() => setShowRegistration(true)} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-bold text-white hover:bg-blue-700">
+                  Continue to product registration <ArrowRight className="h-4 w-4" />
+                </button>
+              </section>
+            )}
+
+            {showRegistration && result && (
+              <form onSubmit={registerProduct} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-700">04 / Product registration</p>
+                  <h2 className="mt-1 text-xl font-semibold text-slate-900">Register your product</h2>
+                  <p className="mt-2 text-sm text-slate-500">Product and assessment details are carried forward. Provide applicant details and upload clear product images and a video.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="text-sm font-medium text-slate-700">Product name<input readOnly value={schema?.product || product} className="mt-1 block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm" /></label>
+                  <label className="text-sm font-medium text-slate-700">Manufacturer / company<input required value={manufacturer} onChange={e=>setManufacturer(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" placeholder="Company or manufacturer name" /></label>
+                  <label className="text-sm font-medium text-slate-700">Applicant name<input required value={applicantName} onChange={e=>setApplicantName(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" /></label>
+                  <label className="text-sm font-medium text-slate-700">Applicant email<input required type="email" value={applicantEmail} onChange={e=>setApplicantEmail(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" /></label>
+                  <label className="text-sm font-medium text-slate-700 sm:col-span-2">Country of origin<input required value={countryOfOrigin} onChange={e=>setCountryOfOrigin(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" /></label>
+                  <label className="text-sm font-medium text-slate-700 sm:col-span-2">Product photos (required)<span className="mt-1 block text-xs font-normal text-slate-500">Upload one or more clear JPG, PNG, or WEBP images. Maximum 15 MB per image.</span><input required multiple accept="image/jpeg,image/png,image/webp" type="file" onChange={e=>setProductPhotos(e.target.files)} className="mt-2 block w-full rounded-lg border border-slate-200 p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" /></label>
+                  <label className="text-sm font-medium text-slate-700 sm:col-span-2">Product video (required)<span className="mt-1 block text-xs font-normal text-slate-500">MP4, MOV, or WEBM. Maximum 50 MB.</span><input required accept="video/mp4,video/quicktime,video/webm" type="file" onChange={e=>setProductVideo(e.target.files?.[0] || null)} className="mt-2 block w-full rounded-lg border border-slate-200 p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700" /></label>
+                </div>
+                {registrationMessage && <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">{registrationMessage}</div>}
+                <button disabled={registrationBusy} type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                  {registrationBusy && <LoaderCircle className="h-4 w-4 animate-spin" />}{registrationBusy ? 'Submitting product and media…' : 'Submit product registration'}{!registrationBusy && <ArrowRight className="h-4 w-4" />}
+                </button>
+                <p className="text-xs leading-5 text-slate-500">This creates an ISense application for review; it is not an official BIS registration or certification.</p>
+              </form>
             )}
 
             {result && (
