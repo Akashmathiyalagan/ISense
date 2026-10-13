@@ -31,121 +31,110 @@ def fallback_questionnaire(
     product: str,
     catalogue_candidates: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """Safe offline questionnaire; common products get tailored questions.
+    """Create a compact evidence-aware fallback when Gemini is unavailable.
 
-    For products not recognised here, the generic questions still collect
-    useful details. When an LLM is configured, the endpoint tries to generate
-    a tailored schema dynamically before using this fallback.
+    Candidate catalogue titles drive the questions when available. With no
+    candidates, ask only the minimum product-identification questions needed
+    to search again; do not inject a fixed six-question business form.
     """
-    p = product.lower()
-    fields: List[Dict[str, Any]] = []
-
+    product = " ".join((product or "").split())[:120]
     candidates = [
         item for item in (catalogue_candidates or [])
         if isinstance(item, dict) and item.get("is_number") and item.get("title")
-    ]
+    ][:6]
+
     if candidates:
         choices = []
-        for item in candidates[:6]:
+        for item in candidates:
             option = f"{item['title']} ({item['is_number']})"
             if option not in choices:
                 choices.append(option[:100])
-        if len(choices) >= 2:
-            fields.append(_field(
+        choices.append("None of these / not sure")
+        fields = [
+            _field(
                 "candidate_product_scope",
-                f"Which BIS catalogue description is closest to your {product.strip()}?",
+                f"Which catalogue description is closest to your {product}?",
                 "radio",
-                choices + ["None of these / not sure"],
+                choices,
                 True,
-                "These are catalogue-title matches only, not a determination that a standard applies. Choose the closest product description.",
-            ))
-            fields.append(_field(
+                "These are preliminary catalogue title matches. Choosing one does not mean the standard applies.",
+            ),
+            _field(
                 "product_subtype",
-                f"What specific type or model of {product.strip()} do you have?",
+                f"What exact type, design or model of {product} is it?",
                 "text",
                 [],
                 True,
-                "Describe its design, construction, model or purpose so ISense can distinguish the candidate scopes.",
-            ))
-            fields.append(_field(
+                "Describe its function and construction so ISense can distinguish the candidate scopes.",
+            ),
+            _field(
                 "intended_use",
-                "What is the intended use and user group?",
+                "What is its intended use or user group?",
                 "radio",
-                ["Household / consumer", "Office / institutional", "Children / toy", "Commercial / industrial", "Medical / specialist", "Other / not sure"],
+                [
+                    "Household / consumer",
+                    "Office / institutional",
+                    "Children / toy",
+                    "Commercial / industrial",
+                    "Medical / specialist",
+                    "Other / not sure",
+                ],
                 True,
-            ))
-            return {
-                "product": product.strip(),
-                "title": f"Clarify the BIS scope for {product.strip()}",
-                "description": "ISense found catalogue candidates. Your answers help distinguish their product scopes; the catalogue itself does not establish applicability.",
-                "fields": fields[:MAX_FIELDS],
-                "schema_source": "catalogue_aware_fallback",
-                "catalogue_candidates": candidates[:6],
-                "redirectPath": f"/apps?product={quote(product.strip())}",
-            }
-
-    if any(x in p for x in ("water bottle", "bottle", "flask", "thermos")):
-        fields.extend([
-            _field("container_type", "What type of bottle or container is it?", "checkbox", [
-                "Single-wall bottle", "Double-wall / vacuum-insulated bottle", "Thermos flask",
-                "Infant feeding bottle", "Sports bottle", "Other / not sure"], True),
-            _field("material", "What material is it made from?", "checkbox", [
-                "Stainless steel", "Plastic", "Glass", "Copper", "Aluminium", "Multiple materials", "Other / not sure"], True),
-            _field("capacity", "What is its capacity?", "radio", [
-                "Up to 250 ml", "251–500 ml", "501–750 ml", "751 ml–1 litre", "More than 1 litre", "Custom / not sure"], True),
-            _field("intended_use", "What will it be used for?", "checkbox", [
-                "Drinking water", "Hot and cold beverages", "Infant feeding", "Outdoor / sports use", "Commercial / institutional use", "Other"], True),
-        ])
-    elif any(x in p for x in ("backpack", "back bag", "school bag", "schoolbag", "bag")):
-        fields.extend([
-            _field("bag_type", "What type of bag is it?", "checkbox", [
-                "School bag for children", "College backpack", "Travel backpack", "Laptop bag", "Handbag / other bag", "Other / not sure"], True),
-            _field("material", "What material is it made from?", "checkbox", [
-                "Polyester / nylon", "Canvas / cotton", "Leather / imitation leather", "Plastic / PVC", "Mixed materials", "Other / not sure"], True),
-            _field("intended_user", "Who is it designed for?", "radio", [
-                "Children under 14", "Teenagers", "Adults", "General use / not sure"], True),
-            _field("features", "Which features apply?", "checkbox", [
-                "Wheels / trolley", "Laptop compartment", "Reflective elements", "Water-resistant", "None / other"], False),
-        ])
-    elif any(x in p for x in ("rc car", "toy car", "toy", "remote control car")):
-        fields.extend([
-            _field("toy_type", "What kind of product is it?", "checkbox", [
-                "Remote-controlled toy car", "Ride-on toy", "Model / hobby vehicle for adults", "Other / not sure"], True),
-            _field("intended_user", "Who is it intended for?", "radio", [
-                "Children under 3", "Children aged 3–8", "Children aged 9–13", "Age 14+ / hobby use", "Not sure"], True),
-            _field("power_source", "What powers it?", "checkbox", [
-                "Replaceable batteries", "Rechargeable battery", "Mains adapter / charger included", "Other / not sure"], True),
-            _field("features", "Which features apply?", "checkbox", [
-                "Remote control", "App / Bluetooth control", "Lights / sound", "Charging cable included", "Other"], False),
-        ])
+            ),
+        ]
+        description = (
+            "ISense found possible BIS catalogue matches. These questions focus on distinguishing their scopes; "
+            "the catalogue itself does not establish applicability."
+        )
+        schema_source = "catalogue_aware_fallback"
     else:
-        fields.extend([
-            _field("product_type", "Which product type best describes it?", "text", [], True,
-                  "Enter the product subtype or model if known."),
-            _field("material", "What is the main material or composition?", "checkbox", [
-                "Metal", "Plastic / polymer", "Glass / ceramic", "Textile / leather", "Electronic / electrical components", "Mixed materials", "Other / not sure"], False),
-            _field("intended_use", "What is its intended use?", "checkbox", [
-                "Household / consumer use", "Children's product / toy", "Commercial / industrial use", "Medical / health-related use", "Electrical / electronic use", "Other / not sure"], True),
-            _field("specifications", "Any key size, capacity, rating or model details?", "text", [], False,
-                  "For example: capacity, dimensions, voltage, model or grade, if applicable."),
-        ])
+        fields = [
+            _field(
+                "product_subtype",
+                f"What exact type or version of {product} do you mean?",
+                "text",
+                [],
+                True,
+                "Describe its function, design and where it is used.",
+            ),
+            _field(
+                "intended_use",
+                "What is its intended use or user group?",
+                "radio",
+                [
+                    "Household / consumer",
+                    "Office / institutional",
+                    "Children / toy",
+                    "Commercial / industrial",
+                    "Medical / specialist",
+                    "Other / not sure",
+                ],
+                True,
+            ),
+            _field(
+                "distinguishing_specs",
+                "What key specification could help identify the product?",
+                "text",
+                [],
+                False,
+                "For example: material, dimensions, load/rating, voltage, model or grade—only if relevant.",
+            ),
+        ]
+        description = (
+            "No sufficiently specific catalogue match was found yet. These short questions gather the product facts "
+            "needed to search the BIS catalogue and indexed scope documents again."
+        )
+        schema_source = "minimal_research_fallback"
 
-    fields.extend([
-        _field("origin", "Where is it manufactured?", "radio", [
-            "Manufactured in India", "Imported / manufactured outside India", "Not decided / not sure"], True),
-        _field("help_needed", "What BIS guidance do you need?", "checkbox", [
-            "Whether certification is required", "Applicable Indian Standard / QCO", "Documents for application",
-            "Testing and laboratory requirements", "Fees and application process"], True),
-    ])
     return {
-        "product": product.strip(),
-        "title": f"Tell us more about your {product.strip()}",
-        "description": "Select the options that apply. This helps ISense search for relevant official BIS evidence; it does not itself determine certification applicability.",
+        "product": product,
+        "title": f"Identify the BIS scope for {product}",
+        "description": description,
         "fields": fields[:MAX_FIELDS],
-        "schema_source": "safe_fallback",
-        "redirectPath": f"/apps?product={quote(product.strip())}",
+        "schema_source": schema_source,
+        "catalogue_candidates": candidates,
+        "redirectPath": f"/apps?product={quote(product)}",
     }
-
 
 def _parse_schema(raw: str, product: str) -> Optional[Dict[str, Any]]:
     if not raw:
