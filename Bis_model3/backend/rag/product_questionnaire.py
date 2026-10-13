@@ -221,11 +221,11 @@ def build_questionnaire(
             ) or "No matching indexed scope excerpts were available."
 
             prompt = (
-                f"User entered this product name: {product!r}.\\n\\n"
+                f"User entered this product name: {product!r}.\n\n"
                 "FIRST REVIEW THE MATCHING BIS CATALOGUE RECORDS AND AVAILABLE OFFICIAL SCOPE EXCERPTS BELOW. "
-                "The catalogue entries are only number/title metadata, not proof that a standard applies.\\n\\n"
-                f"CATALOGUE CANDIDATES:\\n{candidate_block}\\n\\n"
-                f"AVAILABLE OFFICIAL SCOPE EVIDENCE:\\n{evidence_block}\\n\\n"
+                "The catalogue entries are only number/title metadata, not proof that a standard applies.\n\n"
+                f"CATALOGUE CANDIDATES:\n{candidate_block}\n\n"
+                f"AVAILABLE OFFICIAL SCOPE EVIDENCE:\n{evidence_block}\n\n"
                 "Generate a SHORT, product-specific clarification questionnaire that helps distinguish the competing candidate scopes. "
                 "This is not a fixed generic form. Use the differences between the candidate titles and supplied scope excerpts to decide "
                 "which attributes actually discriminate between them. If no candidates were found, ask a small number of questions to identify "
