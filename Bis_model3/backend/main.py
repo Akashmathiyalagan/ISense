@@ -1100,7 +1100,27 @@ async def product_questionnaire(
         raise HTTPException(status_code=422, detail="Enter a product name first.")
     if len(product) > 120:
         raise HTTPException(status_code=422, detail="Product name must be 120 characters or fewer.")
-    schema = build_questionnaire(product, getattr(rag_engine, "llm_provider", None))
+    catalogue_candidates = rag_engine.catalogue.search(product, top_k=8) if getattr(rag_engine, "catalogue", None) else []
+    scope_chunks = rag_engine.retrieve(
+        f"{product} product scope design intended use applicable Indian Standard",
+        top_k=6,
+    )
+    scope_evidence = [
+        {
+            "standard_code": chunk.standard_code,
+            "standard_title": chunk.standard_title,
+            "clause": chunk.clause,
+            "text": chunk.content,
+            "source_url": chunk.source_url,
+        }
+        for chunk in scope_chunks
+    ]
+    schema = build_questionnaire(
+        product,
+        getattr(rag_engine, "llm_provider", None),
+        catalogue_candidates=catalogue_candidates,
+        scope_evidence=scope_evidence,
+    )
     schema["conversationId"] = payload.conversationId
     schema["submitEndpoint"] = "/api/ai/chat"
     schema["redirectPath"] = f"/apps?product={quote(product)}"
