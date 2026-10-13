@@ -215,6 +215,15 @@ class BISStandardCatalogue:
                 normalized_score = min(1.0, weighted_score / denominator)
                 ranked[idx] = max(ranked.get(idx, 0.0), normalized_score)
 
+        ordered = sorted(
+            ranked.items(),
+            key=lambda pair: (
+                pair[1],
+                bool(set(_tokens(self.records[pair[0]].title)) & set(query_terms)),
+            ),
+            reverse=True,
+        )
+
         results: list[dict[str, Any]] = []
         seen: set[str] = set()
         for idx, score in ordered:
