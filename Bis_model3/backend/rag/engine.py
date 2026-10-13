@@ -42,6 +42,41 @@ STATUTORY_DISCLAIMER_SUFFIX = (
 )
 
 
+def _catalogue_query_from_product_request(query: str) -> str:
+    """Prefer the product name and captured product attributes over prompt boilerplate."""
+    text = query or ""
+    product_match = re.search(
+        r"(?im)^\s*[-*]?\s*Product name:\s*(.+?)\s*$",
+        text,
+    )
+    if not product_match:
+        return text[:600]
+
+    terms = [product_match.group(1).strip()]
+    # Read only the structured user-detail block. Later narrative and candidate
+    # lists can contain several standard numbers, which must not hijack lookup.
+    details_match = re.search(
+        r"(?ims)Product details supplied by the user:\s*(.*?)(?:\n\s*\n|Initial BIS catalogue candidates|$)",
+        text,
+    )
+    if details_match:
+        for line in details_match.group(1).splitlines():
+            line = line.strip()
+            if not line.startswith("-") or ":" not in line:
+                continue
+            label, value = line.lstrip("- ").split(":", 1)
+            label_norm = re.sub(r"[^a-z]", "", label.casefold())
+            if label_norm in {
+                "productname", "origin", "manufacturingorigin", "businessactivity",
+                "role", "helpneeded", "b is guidance".replace(" ", ""),
+            }:
+                continue
+            value = value.strip()
+            if value:
+                terms.append(value)
+    return " ".join(terms)[:1000]
+
+
 def _sanitize_internal_chunk_ids(text: str, chunks: List[KnowledgeChunk]) -> str:
     """Replace internal retrieval IDs with readable standard/clause references."""
     cleaned = text or ""
@@ -283,24 +318,23 @@ class BISRAGEngine:
                 f"Query matched multiple candidate standards: {', '.join(detection_res.candidate.keywords if detection_res.candidate else [])}. Clarification may be required."
             )
 
-        # 4. Hybrid Evidence Retrieval: utilize detected candidate standard
+        # Do not hard-filter a product query to the first heuristic classifier match.
+        # Keep retrieval broad so competing standards/scopes can be compared. Only
+        # an authenticated application context may impose a standard-specific filter.
         search_query = query_clean
         active_filter = std_filter
-        if detection_res.is_supported and detection_res.candidate:
-            if not active_filter:
-                active_filter = detection_res.candidate.standard_code
-            search_query = f"{query_clean} {detection_res.candidate.standard_code}"
 
         # First retrieve the detailed regulatory corpus (standards/QCOs/manuals/clauses).
         regulatory_results = self.retrieve_with_scores(
             query=search_query,
-            top_k=4,
+            top_k=8,
             standard_filter=active_filter
         )
 
         # Then retrieve catalogue identifiers/titles from the CSV exported alongside
         # the BIS standards PDF. These are catalogue candidates only, never legal evidence.
-        catalogue_hits = self.catalogue.search(query_clean, top_k=5)
+        catalogue_query = _catalogue_query_from_product_request(query_clean)
+        catalogue_hits = self.catalogue.search(catalogue_query, top_k=8)
         regulatory_codes = {
             re.sub(r"[^A-Z0-9]", "", result.chunk.standard_code.upper())
             for result in regulatory_results
