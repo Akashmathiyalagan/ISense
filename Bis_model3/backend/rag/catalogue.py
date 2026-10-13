@@ -40,9 +40,19 @@ _STOP_WORDS = {
 }
 
 
+def _normalise_term(token: str) -> str:
+    """Lightweight singular normalisation so 'chair' matches 'chairs' in titles."""
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 4 and token.endswith("s") and not token.endswith(("ss", "us", "is")):
+        return token[:-1]
+    return token
+
+
 def _tokens(value: str) -> list[str]:
     return [
-        token for token in re.findall(r"[a-z0-9]+", (value or "").casefold())
+        _normalise_term(token)
+        for token in re.findall(r"[a-z0-9]+", (value or "").casefold())
         if len(token) >= 2 and token not in _STOP_WORDS
     ]
 
