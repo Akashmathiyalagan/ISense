@@ -17,6 +17,7 @@ import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Applications } from './pages/Applications';
 import { NewApplication } from './pages/NewApplication';
+import { ProductAssessment } from './pages/ProductAssessment';
 import { ApplicationDetails } from './pages/ApplicationDetails';
 import { BISStandards } from './pages/BISStandards';
 import { Requirements } from './pages/Requirements';
@@ -139,6 +140,7 @@ export default function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/applications" element={<Applications />} />
                 <Route path="/new-application" element={<NewApplication />} />
+                <Route path="/product-assessment" element={<ProductAssessment />} />
                 <Route path="/applications/:id" element={<ApplicationDetails />} />
                 <Route path="/standards" element={<BISStandards />} />
                 <Route path="/requirements" element={<Requirements />} />

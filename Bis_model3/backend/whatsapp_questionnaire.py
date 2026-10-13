@@ -6,43 +6,19 @@ regulatory evidence.
 """
 import json
 import os
+import re
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from rag.product_questionnaire import build_questionnaire
 
 
+# Legacy fallback retained only for sessions created before dynamic schemas were stored.
+# New sessions use research-driven schemas built from BIS catalogue candidates and scope evidence.
 QUESTION_SETS: Dict[str, List[Dict[str, Any]]] = {
-    "water_bottle": [
-        {"key": "material", "prompt": "What is the main material?", "list_title": "Choose material", "choices": ["Stainless steel", "Plastic", "Glass", "Aluminium", "Other / not sure"]},
-        {"key": "capacity", "prompt": "What is its capacity?", "list_title": "Choose capacity", "choices": ["250 ml or less", "251–750 ml", "751 ml–1 litre", "Above 1 litre", "Not sure"]},
-        {"key": "insulation", "prompt": "Is it insulated?", "list_title": "Insulation", "choices": ["Insulated", "Non-insulated", "Not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
-    ],
-    "backpack": [
-        {"key": "bag_type", "prompt": "What kind of bag is it?", "list_title": "Bag type", "choices": ["School backpack", "Laptop backpack", "Travel backpack", "Trekking backpack", "Other / not sure"]},
-        {"key": "material", "prompt": "What is the main material?", "list_title": "Choose material", "choices": ["Textile / fabric", "Leather", "Synthetic / plastic", "Mixed materials", "Other / not sure"]},
-        {"key": "intended_user", "prompt": "Who is it mainly designed for?", "list_title": "Intended user", "choices": ["Children / school use", "Adults", "All ages", "Not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
-    ],
-    "rc_car": [
-        {"key": "vehicle_type", "prompt": "What type of RC car is it?", "list_title": "Vehicle type", "choices": ["Toy RC car", "Hobby / model vehicle", "Other / not sure"]},
-        {"key": "power_source", "prompt": "How is it powered?", "list_title": "Power source", "choices": ["Rechargeable battery", "Replaceable batteries", "No battery / other", "Not sure"]},
-        {"key": "intended_age", "prompt": "Who is it intended for?", "list_title": "Age group", "choices": ["Under 3 years", "3 to 8 years", "Above 8 years", "Adult hobby use", "Not sure"]},
-        {"key": "material", "prompt": "What is the main body material?", "choices": ["Plastic", "Metal", "Mixed materials", "Not sure"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Toy safety / testing", "Marking / labelling", "All of these"]},
-    ],
     "general": [
-        {"key": "product_type", "prompt": "Which product type describes it best?", "list_title": "Product type", "choices": ["Electrical / electronic", "Household product", "Toy / children's product", "Food-contact product", "Textile / bag", "Other / not sure"]},
-        {"key": "material", "prompt": "What is its main material?", "choices": ["Metal", "Plastic", "Textile / fabric", "Glass / ceramic", "Mixed materials", "Other / not sure"]},
-        {"key": "business_activity", "prompt": "What best describes your activity?", "list_title": "Your activity", "choices": ["Personal use", "Manufacture in India", "Sell in India", "Import into India"]},
-        {"key": "origin", "prompt": "Where is it manufactured?", "list_title": "Product origin", "choices": ["Made in India", "Imported", "Not sure"]},
-        {"key": "help_needed", "prompt": "What BIS guidance do you need?", "list_title": "BIS guidance", "choices": ["Applicable IS standard", "Certification / registration", "Testing requirements", "Marking / labelling", "All of these"]},
+        {"key": "product_type", "prompt": "What exact product type or model is this?", "choices": [], "input_type": "text"},
+        {"key": "intended_use", "prompt": "What is the product designed to be used for?", "list_title": "Intended use?", "choices": ["Household / consumer", "Office / workplace", "School / institutional", "Children / toy", "Commercial / industrial", "Medical / specialist", "Other / not sure"], "input_type": "radio"},
     ],
 }
 
@@ -142,25 +118,17 @@ def _questions_from_schema(
         result = [
             {
                 "key": "product_type",
-                "prompt": "What exact product type, model or variant is this?",
+                "prompt": "What kind of product, model or variant is this?",
                 "list_title": "Product type?",
                 "choices": [],
                 "input_type": "text",
-                "help_text": "Include model, size, rating, or construction if known.",
+                "help_text": "Describe its design and function in everyday terms.",
             },
             {
                 "key": "intended_use",
-                "prompt": "What is the intended use and user group?",
+                "prompt": "What is the product designed to be used for?",
                 "list_title": "Intended use?",
-                "choices": ["Household / consumer", "Children / toy", "Commercial / industrial", "Professional / medical", "Other / not sure"],
-                "input_type": "radio",
-                "help_text": "",
-            },
-            {
-                "key": "business_activity",
-                "prompt": "What is your role?",
-                "list_title": "Your role?",
-                "choices": ["Personal use", "Manufacturer", "Importer", "Seller / distributor", "Other / not sure"],
+                "choices": ["Household / consumer", "Office / workplace", "School / institutional", "Children / toy", "Commercial / industrial", "Medical / specialist", "Other / not sure"],
                 "input_type": "radio",
                 "help_text": "",
             },
@@ -200,6 +168,10 @@ class WhatsAppProductQuestionnaire:
         os.makedirs(os.path.dirname(os.path.abspath(self.storage_path)), exist_ok=True)
         self._lock = threading.RLock()
         self._sessions: Dict[str, Dict[str, Any]] = {}
+        # Runtime dependencies cannot be JSON-serialized. Keep them outside the
+        # persisted conversation data; after a process restart, a pending interview
+        # safely falls back to ordinary stored questions.
+        self._runtime: Dict[str, Dict[str, Any]] = {}
         self._load()
 
     def _load(self) -> None:
@@ -230,6 +202,7 @@ class WhatsAppProductQuestionnaire:
         llm_provider: Any = None,
         catalogue: Any = None,
         scope_evidence: Optional[List[Any]] = None,
+        rag_engine: Any = None,
     ) -> Dict[str, Any]:
         name = " ".join((product_name or "").split())[:120] or "unspecified product"
         category = classify_product(name)
@@ -254,12 +227,24 @@ class WhatsAppProductQuestionnaire:
                 "verification_status": getattr(chunk, "verification_status", ""),
             })
 
-        questions = _questions_from_schema(
-            name,
-            llm_provider,
-            catalogue_candidates=catalogue_candidates,
-            scope_evidence=evidence_rows,
-        )
+        # Generate the initial field using the same evidence-aware question selector
+        # used after every answer. This ensures the first user message also asks one
+        # concrete clarification rather than showing a fixed multi-field form.
+        adaptive_interview = bool(llm_provider is not None and type(llm_provider).__name__ != "UnavailableLLMProvider")
+        if adaptive_interview:
+            questions = self._questions_from_first_turn(
+                name,
+                llm_provider,
+                catalogue_candidates=catalogue_candidates,
+                scope_evidence=evidence_rows,
+            )
+        else:
+            questions = _questions_from_schema(
+                name,
+                llm_provider,
+                catalogue_candidates=catalogue_candidates,
+                scope_evidence=evidence_rows,
+            )
         with self._lock:
             self._sessions[sender_id] = {
                 "product_name": name,
@@ -267,12 +252,57 @@ class WhatsAppProductQuestionnaire:
                 "answers": {},
                 "questions": questions,
                 "catalogue_candidates": catalogue_candidates,
-                "questionnaire_source": "candidate_aware_gemini_or_fallback",
+                "questionnaire_source": "adaptive_candidate_aware" if adaptive_interview else "compact_fallback",
+                "adaptive_interview": adaptive_interview,
+                "asked_questions": [],
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
+            if adaptive_interview:
+                self._runtime[sender_id] = {
+                    "llm_provider": llm_provider,
+                    "catalogue": catalogue,
+                    "rag_engine": rag_engine,
+                }
+            else:
+                self._runtime.pop(sender_id, None)
             self._save()
             return self._current_question(sender_id, intro=True)
+
+    def _questions_from_first_turn(
+        self,
+        product_name: str,
+        llm_provider: Any,
+        catalogue_candidates: List[Dict[str, Any]],
+        scope_evidence: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Turn initial retrieval into one plain-language clarification question."""
+        schema = build_questionnaire(
+            product_name,
+            llm_provider,
+            catalogue_candidates=catalogue_candidates,
+            scope_evidence=scope_evidence,
+        )
+        fields = schema.get("fields", [])
+        if not fields:
+            return _questions_from_schema(product_name, llm_provider, catalogue_candidates, scope_evidence)[:1]
+        field = fields[0]
+        field_id = str(field.get("id") or "product_subtype").strip()[:40]
+        label = str(field.get("label") or f"What kind of {product_name} is it?").strip()[:180]
+        kind = str(field.get("type") or "text").lower()
+        options = field.get("options", [])
+        if kind == "radio" and isinstance(options, list) and len(options) >= 2:
+            choices = [str(v).strip()[:100] for v in options if str(v).strip()][:6]
+        else:
+            kind, choices = "text", []
+        return [{
+            "key": field_id,
+            "prompt": label,
+            "list_title": _short_picker_title(field_id, label),
+            "choices": choices,
+            "input_type": kind,
+            "help_text": str(field.get("helpText") or "")[:240],
+        }]
 
     def handle_reply(self, sender_id: str, answer: str) -> Dict[str, Any]:
         normalized = " ".join((answer or "").split())
@@ -285,6 +315,7 @@ class WhatsAppProductQuestionnaire:
 
             if normalized.casefold() in self.CANCEL_WORDS:
                 self._sessions.pop(sender_id, None)
+                self._runtime.pop(sender_id, None)
                 self._save()
                 return {
                     "handled": True,
@@ -300,15 +331,38 @@ class WhatsAppProductQuestionnaire:
                 return {"handled": False}
 
             question = questions[index]
-            # List replies use the displayed title. Free-typed answers are accepted too.
-            session["answers"][question["key"]] = normalized[:160]
+            session.setdefault("answers", {})[question["key"]] = normalized[:160]
             session["index"] = index + 1
+            session.setdefault("asked_questions", []).append(question["key"])
 
-            # Recalculate after the answer: a choice such as Insulated can add a
-            # follow-up question, so do not compare against the old question count.
-            next_questions = _questions_for_session(session)
-            if session["index"] >= len(next_questions):
+            if session.get("adaptive_interview"):
+                next_question = self._generate_next_question(sender_id, session)
+                if next_question is None:
+                    completed = self._sessions.pop(sender_id)
+                    self._runtime.pop(sender_id, None)
+                    self._save()
+                    return {
+                        "handled": True,
+                        "complete": True,
+                        "product_name": completed["product_name"],
+                        "category": completed["category"],
+                        "answers": completed["answers"],
+                        "rag_query": self._to_rag_query(completed),
+                        "message": "Thanks. I have enough product details to compare the relevant BIS sources. I’ll now check the evidence and prepare your guidance.",
+                    }
+                session["questions"] = [next_question]
+                session["index"] = 0
+                self._save()
+                result = self._current_question(sender_id, intro=False)
+                result["recorded_answer"] = normalized[:160]
+                result["handled"] = True
+                result["question_number"] = len(session["asked_questions"]) + 1
+                result["total_questions"] = "adaptive"
+                return result
+
+            if session["index"] >= len(questions):
                 completed = self._sessions.pop(sender_id)
+                self._runtime.pop(sender_id, None)
                 self._save()
                 return {
                     "handled": True,
@@ -326,12 +380,135 @@ class WhatsAppProductQuestionnaire:
             result["handled"] = True
             return result
 
+    def _generate_next_question(self, sender_id: str, session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Re-query BIS evidence and generate at most one useful next question."""
+        max_questions = 5
+        asked = set(session.get("asked_questions", []))
+        if len(asked) >= max_questions:
+            return None
+
+        product = session.get("product_name", "product")
+        answers = session.get("answers", {})
+        answer_context = "\n".join(
+            f"- {key.replace('_', ' ')}: {value}" for key, value in answers.items()
+        )
+        retrieval_query = (
+            f"{product} product scope intended use design construction exclusions "
+            f"Indian Standard Quality Control Order\n{answer_context}"
+        )
+
+        runtime = self._runtime.get(sender_id, {})
+        engine = runtime.get("rag_engine")
+        catalogue = runtime.get("catalogue")
+        candidates = list(session.get("catalogue_candidates", []))
+        evidence_rows: List[Dict[str, Any]] = []
+        if engine is not None:
+            try:
+                retrieved = engine.retrieve(retrieval_query, top_k=8)
+            except Exception:
+                retrieved = []
+            for chunk in retrieved[:8]:
+                evidence_rows.append({
+                    "standard_code": getattr(chunk, "standard_code", ""),
+                    "standard_title": getattr(chunk, "standard_title", ""),
+                    "clause": getattr(chunk, "clause", ""),
+                    "text": getattr(chunk, "content", ""),
+                    "source_url": getattr(chunk, "source_url", ""),
+                    "verification_status": getattr(chunk, "verification_status", ""),
+                })
+        if catalogue is not None:
+            try:
+                candidates = catalogue.search(product + "\n" + answer_context, top_k=8)
+                session["catalogue_candidates"] = candidates
+            except Exception:
+                pass
+
+        provider = runtime.get("llm_provider")
+        if provider is None:
+            return None
+
+        prompt = (
+            "Choose exactly one next clarification question for a BIS product-scope interview. "
+            "Candidate standard titles are search hints; retrieved official scope excerpts are evidence. "
+            "Ask only for a fact that would materially distinguish remaining candidate scopes or resolve a meaningful uncertainty. "
+            "Do not repeat a prior field. Do not ask for the standard number, manufacturing origin, business activity, capacity, dimensions, "
+            "or voltage unless supplied official evidence makes the detail relevant. "
+            "If no additional clarification is needed, return a JSON object with done=true. "
+            "Otherwise return JSON with done=false and a field object containing id, label, type, options, required, and helpText. "
+            "The field type must be radio or text. For radio, use 2–6 plain-language answers and include Not sure. "
+            "Return JSON only. Never claim that a standard applies or certification is mandatory.\n\n"
+            f"PRODUCT: {product}\nANSWERS SO FAR:\n{answer_context}\n"
+            f"CATALOGUE CANDIDATES (metadata only): {json.dumps(candidates[:8], ensure_ascii=False)[:5000]}\n"
+            f"OFFICIAL SCOPE EXCERPTS: {json.dumps(evidence_rows[:8], ensure_ascii=False)[:9000]}\n"
+            f"ALREADY ASKED: {sorted(asked)}"
+        )
+        try:
+            result = provider.generate(
+                query=prompt,
+                system_instruction=(
+                    "Return only a JSON decision for the next clarification question. "
+                    "Questions must be grounded in current user answers and supplied BIS evidence. "
+                    "Never determine legal applicability from catalogue title alone."
+                ),
+                retrieved_chunks=[],
+                application_context={
+                    "task": "adaptive_bis_product_interview",
+                    "product": product,
+                    "answers": answers,
+                },
+            )
+            if not getattr(result, "is_success", False):
+                return None
+            raw = str(getattr(result, "text", "") or "").strip()
+            raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE)
+            left, right = raw.find("{"), raw.rfind("}")
+            if left < 0 or right <= left:
+                return None
+            decision = json.loads(raw[left:right + 1])
+            if decision.get("done") is True:
+                return None
+            field = decision.get("field")
+            if not isinstance(field, dict):
+                return None
+            field_id = re.sub(r"[^a-zA-Z0-9_]+", "_", str(field.get("id", ""))).strip("_").lower()[:40]
+            label = " ".join(str(field.get("label", "")).split())[:180]
+            if not field_id or not label or field_id in asked:
+                return None
+
+            kind = str(field.get("type", "text")).lower()
+            options = field.get("options", [])
+            if kind == "radio" and isinstance(options, list):
+                options = list(dict.fromkeys(" ".join(str(v).split())[:100] for v in options if str(v).strip()))[:6]
+                if len(options) < 2:
+                    kind, options = "text", []
+            else:
+                kind, options = "text", []
+
+            return {
+                "key": field_id,
+                "prompt": label,
+                "list_title": _short_picker_title(field_id, label),
+                "choices": options,
+                "input_type": kind,
+                "help_text": " ".join(str(field.get("helpText", "")).split())[:240],
+            }
+        except Exception:
+            return None
+
     def _current_question(self, sender_id: str, intro: bool) -> Dict[str, Any]:
         session = self._sessions[sender_id]
         questions = _questions_for_session(session)
         idx = int(session["index"])
         q = questions[idx]
-        lead = f"Let's collect a few details about *{session['product_name']}*." if intro else f"Recorded: *{session['answers'][questions[idx - 1]['key']]}*."
+        adaptive = bool(session.get("adaptive_interview"))
+        if intro:
+            lead = f"I checked the BIS catalogue and available scope records for *{session['product_name']}*."
+        elif adaptive:
+            previous_key = session.get("asked_questions", [""])[-1]
+            previous_value = session.get("answers", {}).get(previous_key, "")
+            lead = f"Recorded: *{previous_value}*. I’m narrowing the product scope using that detail."
+        else:
+            lead = f"Recorded: *{session['answers'][questions[idx - 1]['key']]}*."
         # The list-opening button is the chooser title; keep it short and
         # question-specific so the user sees the question while selecting.
         list_title = q.get("list_title") or _default_list_title(q["key"])
@@ -358,7 +535,7 @@ class WhatsAppProductQuestionnaire:
     def _to_rag_query(session: Dict[str, Any]) -> str:
         """Build a user-facing regulatory query; response policy belongs in the RAG system prompt."""
         questions = _questions_for_session(session)
-        labels = {q["key"]: q.get("label") or q["key"].replace("_", " ").title() for q in questions}
+        labels = {q["key"]: q.get("label") or q.get("prompt") or q["key"].replace("_", " ").title() for q in questions}
         lines = [
             f"Please assess the BIS requirements for this exact product: {session.get('product_name', 'unspecified product')}.",
             "Product details supplied by the user:",

@@ -5,22 +5,49 @@ from whatsapp_questionnaire import WhatsAppProductQuestionnaire, classify_produc
 
 
 class FakeSchemaProvider:
-    """A provider stand-in proving custom products can receive generated questions."""
+    """Provider stub supporting both initial schemas and adaptive follow-up questions."""
+
+    def __init__(self):
+        self.calls = 0
+        self.last_query = ""
 
     def generate(self, query, system_instruction, retrieved_chunks, application_context=None):
+        self.calls += 1
         self.last_query = query
-        schema = {
-            "title": "Industrial gloves",
-            "fields": [
-                {
-                    "id": "glove_coating",
-                    "label": "What coating or finish do the gloves have?",
-                    "type": "radio",
-                    "options": ["Powder-free", "Powdered", "Textured", "Not sure"],
-                    "required": True,
-                    "helpText": "Select the finish on the product specification.",
-                },
-                {
+        if self.calls == 1:
+            schema = {
+                "title": "Industrial gloves",
+                "fields": [
+                    {
+                        "id": "glove_coating",
+                        "label": "What coating or finish do the gloves have?",
+                        "type": "radio",
+                        "options": ["Powder-free", "Powdered", "Textured", "Not sure"],
+                        "required": True,
+                        "helpText": "Select the finish on the product specification.",
+                    },
+                    {
+                        "id": "application",
+                        "label": "What will the gloves be used for?",
+                        "type": "radio",
+                        "options": ["Medical examination", "Industrial handling", "Food handling", "Other"],
+                        "required": True,
+                        "helpText": "",
+                    },
+                    {
+                        "id": "model_details",
+                        "label": "Enter model, material and thickness if known.",
+                        "type": "text",
+                        "options": [],
+                        "required": False,
+                        "helpText": "Use details from the product datasheet.",
+                    },
+                ],
+            }
+        elif self.calls == 2:
+            schema = {
+                "done": False,
+                "field": {
                     "id": "application",
                     "label": "What will the gloves be used for?",
                     "type": "radio",
@@ -28,7 +55,11 @@ class FakeSchemaProvider:
                     "required": True,
                     "helpText": "",
                 },
-                {
+            }
+        elif self.calls == 3:
+            schema = {
+                "done": False,
+                "field": {
                     "id": "model_details",
                     "label": "Enter model, material and thickness if known.",
                     "type": "text",
@@ -36,8 +67,9 @@ class FakeSchemaProvider:
                     "required": False,
                     "helpText": "Use details from the product datasheet.",
                 },
-            ],
-        }
+            }
+        else:
+            schema = {"done": True}
         return SimpleNamespace(is_success=True, text=json.dumps(schema))
 
 
@@ -61,7 +93,7 @@ def test_arbitrary_product_uses_generated_product_specific_questions(tmp_path):
     assert started["list_title"]
     assert started["list_title"] != "Choose answer"
     assert "Powder-free" in started["options"]
-    assert started["total_questions"] == 3
+    assert started["total_questions"] == 1
 
     step = bot.handle_reply("user-1", "Powder-free")
     assert step["question_number"] == 2
@@ -81,12 +113,13 @@ def test_arbitrary_product_uses_generated_product_specific_questions(tmp_path):
     assert "After retrieval, answer in this order" not in result["rag_query"]
 
 
-def test_fallback_questionnaire_handles_water_bottle_and_finishes(tmp_path):
+def test_fallback_questionnaire_uses_compact_product_identification_and_finishes(tmp_path):
     bot = WhatsAppProductQuestionnaire(str(tmp_path / "sessions.json"))
     first = bot.start("user-2", "water bottle")
     assert first["handled"] is True
-    assert first["total_questions"] >= 2
-    assert first["options"]
+    assert 2 <= first["total_questions"] <= 3
+    assert first["input_type"] == "text"
+    assert "kind or model" in first["question"].lower()
 
     questions = list(bot._sessions["user-2"]["questions"])
     result = first
@@ -178,4 +211,80 @@ def test_questionnaire_prompt_is_grounded_in_catalogue_candidates_and_scope_exce
     assert "IS 17632:2022: General Purpose Chairs and Stools" in provider.last_query
     assert "Applies to work chairs" in provider.last_query
     assert "not proof that a standard applies" in provider.last_query
-    assert started["total_questions"] == 3
+    assert started["total_questions"] == 1
+
+class AdaptiveSchemaProvider:
+    def __init__(self):
+        self.calls = 0
+        self.last_query = ""
+
+    def generate(self, query, system_instruction, retrieved_chunks, application_context=None):
+        self.calls += 1
+        self.last_query = query
+        if self.calls == 1:
+            schema = {
+                "title": "Chair classification",
+                "fields": [
+                    {"id": "chair_subtype", "label": "What kind of chair is it?", "type": "text", "options": [], "required": True, "helpText": ""},
+                    {"id": "intended_use", "label": "What is it designed to be used for?", "type": "radio", "options": ["Office work", "General seating", "Other / not sure"], "required": True, "helpText": ""}
+                ],
+            }
+        else:
+            schema = {
+                "done": False,
+                "field": {
+                    "id": "chair_construction",
+                    "label": "Does the chair have a special design or adjustment mechanism?",
+                    "type": "radio",
+                    "options": ["Height-adjustable work chair", "Fixed general-purpose chair", "Other / not sure"],
+                    "required": True,
+                    "helpText": "This may help distinguish the remaining product scopes.",
+                },
+            }
+        return SimpleNamespace(is_success=True, text=json.dumps(schema))
+
+
+def test_adaptive_interview_generates_next_question_after_answer_and_refreshes_research(tmp_path):
+    provider = AdaptiveSchemaProvider()
+    catalogue = FakeCatalogue([
+        {"is_number": "IS 17631:2022", "title": "Work Chairs — Specification"},
+        {"is_number": "IS 17632:2022", "title": "General Purpose Chairs and Stools"},
+    ])
+
+    class FakeEngine:
+        def __init__(self):
+            self.queries = []
+
+        def retrieve(self, query, top_k=8):
+            self.queries.append(query)
+            return [SimpleNamespace(
+                standard_code="IS 17631:2022",
+                standard_title="Work Chairs — Specification",
+                clause="Scope",
+                content="Scope excerpt for work chairs.",
+                source_url="https://www.bis.gov.in/",
+                verification_status="verified_official_record",
+            )]
+
+    engine = FakeEngine()
+    bot = WhatsAppProductQuestionnaire(str(tmp_path / "adaptive.json"))
+    first = bot.start(
+        "adaptive-user",
+        "chair",
+        llm_provider=provider,
+        catalogue=catalogue,
+        scope_evidence=[],
+        rag_engine=engine,
+    )
+    assert first["question_number"] == 1
+    assert first["total_questions"] == 1
+    assert bot._sessions["adaptive-user"]["questions"][0]["key"] == "chair_subtype"
+
+    second = bot.handle_reply("adaptive-user", "office chair")
+    assert second["handled"] is True
+    assert second["question_number"] == 2
+    assert second["total_questions"] == "adaptive"
+    assert "special design" in second["question"].lower()
+    assert engine.queries
+    assert "office chair" in engine.queries[-1]
+    assert "ALREADY ASKED" in provider.last_query

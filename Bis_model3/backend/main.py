@@ -1580,6 +1580,7 @@ async def handle_whatsapp_webhook(
                                     f"{text_body} product scope design intended use applicable Indian Standard",
                                     top_k=6,
                                 ),
+                                rag_engine=rag_engine,
                             )
                         )
 

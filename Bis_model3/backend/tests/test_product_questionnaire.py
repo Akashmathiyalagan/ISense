@@ -4,24 +4,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rag.product_questionnaire import build_questionnaire, fallback_questionnaire, _parse_schema
 
 
-def test_water_bottle_has_relevant_choices_and_redirect():
+def test_fallback_questions_are_compact_and_do_not_ask_generic_compliance_details():
     data = build_questionnaire("steel water bottle")
     assert data["product"] == "steel water bottle"
-    assert any(f["id"] == "capacity" for f in data["fields"])
-    assert any("vacuum-insulated" in " ".join(f["options"]) for f in data["fields"])
+    assert 2 <= len(data["fields"]) <= 3
+    assert any(f["id"] == "intended_use" for f in data["fields"])
+    assert not any(f["id"] in {"origin", "business_activity", "help_needed"} for f in data["fields"])
     assert data["redirectPath"].startswith("/apps?product=")
 
 
-def test_backpack_does_not_return_water_bottle_options():
+def test_backpack_fallback_asks_about_actual_subtype_and_use():
     data = fallback_questionnaire("school backpack")
-    assert any(f["id"] == "bag_type" for f in data["fields"])
-    assert not any(f["id"] == "capacity" for f in data["fields"])
-
-
-def test_unknown_product_gets_generic_questions():
-    data = fallback_questionnaire("industrial gasket")
-    assert len(data["fields"]) >= 4
+    assert any(f["id"] == "product_subtype" for f in data["fields"])
     assert any(f["id"] == "intended_use" for f in data["fields"])
+    assert not any(f["id"] == "capacity" for f in data["fields"])
+    assert not any(f["id"] == "bag_type" for f in data["fields"])
+
+
+def test_unknown_product_gets_compact_product_identification_questions():
+    data = fallback_questionnaire("industrial gasket")
+    assert 2 <= len(data["fields"]) <= 3
+    assert any(f["id"] == "intended_use" for f in data["fields"])
+    assert any(f["id"] == "product_subtype" for f in data["fields"])
+    assert not any(f["id"] in {"origin", "business_activity", "help_needed"} for f in data["fields"])
 
 
 def test_schema_parser_rejects_invalid_options():

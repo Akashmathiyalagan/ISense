@@ -44,66 +44,64 @@ def fallback_questionnaire(
     ][:6]
 
     if candidates:
-        choices = []
-        for item in candidates:
-            option = f"{item['title']} ({item['is_number']})"
-            if option not in choices:
-                choices.append(option[:100])
-        choices.append("None of these / not sure")
+        # Candidate titles are search hints, not user-friendly classification choices.
         fields = [
             _field(
-                "candidate_product_scope",
-                f"Which catalogue description is closest to your {product}?",
-                "radio",
-                choices,
-                True,
-                "These are preliminary catalogue title matches. Choosing one does not mean the standard applies.",
-            ),
-            _field(
                 "product_subtype",
-                f"What exact type, design or model of {product} is it?",
+                f"What kind of {product} is it?",
                 "text",
                 [],
                 True,
-                "Describe its function and construction so ISense can distinguish the candidate scopes.",
+                "Describe its design, function or model in everyday terms.",
             ),
             _field(
                 "intended_use",
-                "What is its intended use or user group?",
+                f"What is this {product} designed to be used for?",
                 "radio",
                 [
                     "Household / consumer",
-                    "Office / institutional",
+                    "Office / workplace",
+                    "School / institutional",
                     "Children / toy",
                     "Commercial / industrial",
                     "Medical / specialist",
                     "Other / not sure",
                 ],
                 True,
+                "This helps distinguish product scopes; it does not determine legal applicability by itself.",
+            ),
+            _field(
+                "distinguishing_specs",
+                f"Is there a product detail that distinguishes this {product}?",
+                "text",
+                [],
+                False,
+                "Add only relevant details, such as material, construction, size, load rating, voltage or model.",
             ),
         ]
         description = (
-            "ISense found possible BIS catalogue matches. These questions focus on distinguishing their scopes; "
-            "the catalogue itself does not establish applicability."
+            "ISense found possible BIS catalogue matches and will use your answers to compare product scope. "
+            "Catalogue titles are candidate matches, not proof that a standard applies."
         )
         schema_source = "catalogue_aware_fallback"
     else:
         fields = [
             _field(
                 "product_subtype",
-                f"What exact type or version of {product} do you mean?",
+                f"What kind or model of {product} do you mean?",
                 "text",
                 [],
                 True,
-                "Describe its function, design and where it is used.",
+                "Describe its design and function in your own words.",
             ),
             _field(
                 "intended_use",
-                "What is its intended use or user group?",
+                f"What is this {product} designed to be used for?",
                 "radio",
                 [
                     "Household / consumer",
-                    "Office / institutional",
+                    "Office / workplace",
+                    "School / institutional",
                     "Children / toy",
                     "Commercial / industrial",
                     "Medical / specialist",
@@ -113,16 +111,16 @@ def fallback_questionnaire(
             ),
             _field(
                 "distinguishing_specs",
-                "What key specification could help identify the product?",
+                f"Which product detail is relevant to identifying this {product}?",
                 "text",
                 [],
                 False,
-                "For example: material, dimensions, load/rating, voltage, model or grade—only if relevant.",
+                "Share a material, model, size, rating or other detail only if known and relevant.",
             ),
         ]
         description = (
-            "No sufficiently specific catalogue match was found yet. These short questions gather the product facts "
-            "needed to search the BIS catalogue and indexed scope documents again."
+            "I could not identify a sufficiently specific catalogue match yet. These brief details help narrow the "
+            "product before checking the relevant BIS scope documents again."
         )
         schema_source = "minimal_research_fallback"
 
