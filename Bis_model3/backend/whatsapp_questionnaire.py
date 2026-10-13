@@ -205,6 +205,7 @@ class WhatsAppProductQuestionnaire:
         llm_provider: Any = None,
         catalogue: Any = None,
         scope_evidence: Optional[List[Any]] = None,
+        rag_engine: Any = None,
     ) -> Dict[str, Any]:
         name = " ".join((product_name or "").split())[:120] or "unspecified product"
         category = classify_product(name)
@@ -252,7 +253,7 @@ class WhatsAppProductQuestionnaire:
                 "asked_questions": [],
                 "llm_provider": llm_provider if adaptive_interview else None,
                 "catalogue": catalogue,
-                "rag_engine": None,
+                "rag_engine": rag_engine,
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
