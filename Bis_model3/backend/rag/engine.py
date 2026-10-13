@@ -7,6 +7,7 @@ from rag.ingestion import RegulatoryIngestionPipeline
 from rag.index import BISSearchIndex, construct_citations
 from rag.llm_provider import get_llm_provider, BaseLLMProvider
 from rag.standard_detector import detect_bis_standard, detect_bis_standard_structured
+from rag.catalogue import BISStandardCatalogue
 
 logger = logging.getLogger("isense_rag_engine")
 
@@ -24,6 +25,7 @@ NON-NEGOTIABLE EVIDENCE RULES:
 8. Keep answers direct and readable. Use a short direct answer followed by relevant sections, bullets, and next steps as appropriate to the question. Do not force irrelevant sections into every answer.
 9. For product applicability questions, where supported, cover: likely applicable standard/scheme; conditions and exclusions; key evidenced requirements; documents/testing/process if asked; what remains unverified; and official source links.
 10. Preserve the statutory boundary: ISense provides compliance assistance only. BIS alone grants official licences and authorises use of the Standard Mark; direct users to the appropriate official BIS portal for filing or final confirmation.
+11. Treat any chunk whose verification_status is "catalogue_metadata_only" as an identifier/title lookup record only. It can support that BIS's public catalogue listed a number/title on the retrieval date, but it cannot establish scope, whether the edition is current, QCO/mandatory status, exemptions, testing clauses, fees, timelines or product applicability. Label it as a candidate and require scope/order evidence for stronger claims.
 
 RESPONSE STYLE:
 - Start with a direct answer in plain language.
@@ -70,6 +72,9 @@ class BISRAGEngine:
         self.pipeline = RegulatoryIngestionPipeline(storage_dir=self.storage_dir)
         self.index = BISSearchIndex(use_dense=use_dense, min_relevance_threshold=min_relevance_threshold)
         self.llm_provider = llm_provider or get_llm_provider()
+        # The CSV is the structured twin of the generated catalogue PDF; using it
+        # avoids re-parsing hundreds of PDF pages on every query.
+        self.catalogue = BISStandardCatalogue()
 
         # Load and index regulatory corpus
         self.reload_knowledge_base()
@@ -286,17 +291,76 @@ class BISRAGEngine:
                 active_filter = detection_res.candidate.standard_code
             search_query = f"{query_clean} {detection_res.candidate.standard_code}"
 
-        retrieval_results = self.retrieve_with_scores(
+        # First retrieve the detailed regulatory corpus (standards/QCOs/manuals/clauses).
+        regulatory_results = self.retrieve_with_scores(
             query=search_query,
             top_k=4,
             standard_filter=active_filter
         )
 
-        retrieved_chunks = [r.chunk for r in retrieval_results]
-        citations = construct_citations(retrieval_results)
+        # Then retrieve catalogue identifiers/titles from the CSV exported alongside
+        # the BIS standards PDF. These are catalogue candidates only, never legal evidence.
+        catalogue_hits = self.catalogue.search(query_clean, top_k=5)
+        regulatory_codes = {
+            re.sub(r"[^A-Z0-9]", "", result.chunk.standard_code.upper())
+            for result in regulatory_results
+        }
+        catalogue_results: List[RetrievalResult] = []
+        for hit in catalogue_hits[:4]:
+            code = str(hit.get("is_number") or "")
+            normalized_code = re.sub(r"[^A-Z0-9]", "", code.upper())
+            if not code or normalized_code in regulatory_codes:
+                continue
+            content_parts = [
+                "BIS PUBLISHED-STANDARDS CATALOGUE METADATA ONLY — not scope or regulatory evidence.",
+                f"Catalogue number: {code}",
+                f"Catalogue title: {hit.get('title', '')}",
+            ]
+            for label, key in (
+                ("Technical department", "technical_department"),
+                ("Sectional committee", "sectional_committee"),
+                ("Standard type", "standard_type"),
+                ("Publication date shown by portal", "published_on"),
+            ):
+                if hit.get(key):
+                    content_parts.append(f"{label}: {hit[key]}")
+            content_parts.append(
+                "This catalogue record does not establish product scope, current validity, QCO/mandatory status, "
+                "exemptions, required tests, fees, timelines, or applicability to the user's product."
+            )
+            chunk = KnowledgeChunk(
+                chunk_id="bis-catalogue-" + __import__("hashlib").sha256(code.encode("utf-8")).hexdigest()[:12],
+                document_id="bis-published-standards-catalogue",
+                standard_code=code,
+                standard_title=str(hit.get("title") or "Title not supplied"),
+                clause="Catalogue metadata only — not scope evidence",
+                page=None,
+                content="; ".join(content_parts),
+                category=str(hit.get("technical_department") or "BIS catalogue metadata"),
+                authority="BIS public Published Standards Catalogue (metadata only)",
+                verification_status="catalogue_metadata_only",
+                source_url=str(hit.get("source_url") or "https://standards.bis.gov.in/website/know-your-standards"),
+                publication_date=str(hit.get("published_on") or ""),
+            )
+            catalogue_results.append(
+                RetrievalResult(
+                    chunk=chunk,
+                    dense_score=0.0,
+                    bm25_score=float(hit.get("score") or 0.0),
+                    hybrid_score=min(0.19, max(0.0, float(hit.get("score") or 0.0) / 100.0)),
+                    match_type="catalogue_metadata",
+                )
+            )
+
+        # Keep full-text/regulatory scores separate from catalogue lookup scores.
+        # This prevents a matching title from falsely satisfying evidence sufficiency.
+        retrieved_chunks = [r.chunk for r in regulatory_results]
+        candidate_chunks = [r.chunk for r in catalogue_results]
+        generation_chunks = retrieved_chunks + candidate_chunks
+        citations = construct_citations(regulatory_results + catalogue_results)
 
         # 5. Evaluate Evidence Sufficiency
-        max_score = max([r.hybrid_score for r in retrieval_results]) if retrieval_results else 0.0
+        max_score = max([r.hybrid_score for r in regulatory_results]) if regulatory_results else 0.0
         insufficient_evidence = False
 
         # Check if the query is inquiring about an unknown product or specific entity
@@ -319,7 +383,7 @@ class BISRAGEngine:
         distinctive_subject_terms = [w for w in query_words if w not in GENERIC_REGULATORY_TERMS and len(w) > 2]
 
         has_std_code = bool(re.search(r'\b(?:IS|is)\s*[:\-]?\s*\d{3,5}\b', query_clean) or re.search(r'\b\d{4,5}\b', query_clean))
-        all_chunk_text = " ".join([f"{c.standard_code} {c.standard_title} {c.content}".lower() for c in retrieved_chunks])
+        all_chunk_text = " ".join([f"{c.standard_code} {c.standard_title} {c.content}".lower() for c in generation_chunks])
         matched_subject_terms = [t for t in distinctive_subject_terms if t in all_chunk_text]
 
         has_product_in_evidence = True
@@ -348,9 +412,25 @@ class BISRAGEngine:
                 + STATUTORY_DISCLAIMER_SUFFIX
             )
 
+            if catalogue_hits:
+                candidates_text = "\n\n**Catalogue matches to investigate (not confirmed applicable standards):**\n"
+                candidates_text += "\n".join(
+                    f"- **{hit['is_number']} — {hit['title']}**"
+                    + (f" ({hit['technical_department']})" if hit.get("technical_department") else "")
+                    for hit in catalogue_hits[:5]
+                )
+                candidates_text += (
+                    "\n\nThese are title/identifier matches from BIS's published-standards catalogue only. "
+                    "This catalogue does not prove that the standards apply to your product or that certification is compulsory. "
+                    "Check the official standard scope and current QCO/order before taking action: "
+                    "[BIS Know Your Standards](https://standards.bis.gov.in/website/know-your-standards), "
+                    "[BIS Scheme-I list](https://www.bis.gov.in/product-certification/products-under-compulsory-certification/scheme-i-mark-scheme/?lang=en), "
+                    "[Manak Online](https://www.manakonline.in/)."
+                )
+                abstain_answer += candidates_text
             return {
                 "content": abstain_answer,
-                "sources": [],
+                "sources": [citation.model_dump() for citation in citations],
                 "confidence": 0.0,
                 "insufficient_evidence": True,
                 "warnings": warnings
@@ -364,7 +444,7 @@ class BISRAGEngine:
         gen_result = active_provider.generate(
             query=query_clean,
             system_instruction=SYSTEM_INSTRUCTION,
-            retrieved_chunks=retrieved_chunks,
+            retrieved_chunks=generation_chunks,
             application_context=application_context
         )
 
@@ -379,7 +459,7 @@ class BISRAGEngine:
             warnings.append(gen_result.error_message)
 
         # Append statutory disclaimer if not already included
-        final_content = _sanitize_internal_chunk_ids(gen_result.text, retrieved_chunks)
+        final_content = _sanitize_internal_chunk_ids(gen_result.text, generation_chunks)
         if "Statutory Boundary Notice" not in final_content and "ISense is an independent" not in final_content:
             final_content += STATUTORY_DISCLAIMER_SUFFIX
 
