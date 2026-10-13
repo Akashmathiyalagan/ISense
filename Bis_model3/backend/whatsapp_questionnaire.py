@@ -168,6 +168,10 @@ class WhatsAppProductQuestionnaire:
         os.makedirs(os.path.dirname(os.path.abspath(self.storage_path)), exist_ok=True)
         self._lock = threading.RLock()
         self._sessions: Dict[str, Dict[str, Any]] = {}
+        # Runtime dependencies cannot be JSON-serialized. Keep them outside the
+        # persisted conversation data; after a process restart, a pending interview
+        # safely falls back to ordinary stored questions.
+        self._runtime: Dict[str, Dict[str, Any]] = {}
         self._load()
 
     def _load(self) -> None:
@@ -251,12 +255,17 @@ class WhatsAppProductQuestionnaire:
                 "questionnaire_source": "adaptive_candidate_aware" if adaptive_interview else "compact_fallback",
                 "adaptive_interview": adaptive_interview,
                 "asked_questions": [],
-                "llm_provider": llm_provider if adaptive_interview else None,
-                "catalogue": catalogue,
-                "rag_engine": rag_engine,
                 "index": 0,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
+            if adaptive_interview:
+                self._runtime[sender_id] = {
+                    "llm_provider": llm_provider,
+                    "catalogue": catalogue,
+                    "rag_engine": rag_engine,
+                }
+            else:
+                self._runtime.pop(sender_id, None)
             self._save()
             return self._current_question(sender_id, intro=True)
 
@@ -306,6 +315,7 @@ class WhatsAppProductQuestionnaire:
 
             if normalized.casefold() in self.CANCEL_WORDS:
                 self._sessions.pop(sender_id, None)
+                self._runtime.pop(sender_id, None)
                 self._save()
                 return {
                     "handled": True,
@@ -326,9 +336,10 @@ class WhatsAppProductQuestionnaire:
             session.setdefault("asked_questions", []).append(question["key"])
 
             if session.get("adaptive_interview"):
-                next_question = self._generate_next_question(session)
+                next_question = self._generate_next_question(sender_id, session)
                 if next_question is None:
                     completed = self._sessions.pop(sender_id)
+                    self._runtime.pop(sender_id, None)
                     self._save()
                     return {
                         "handled": True,
@@ -351,6 +362,7 @@ class WhatsAppProductQuestionnaire:
 
             if session["index"] >= len(questions):
                 completed = self._sessions.pop(sender_id)
+                self._runtime.pop(sender_id, None)
                 self._save()
                 return {
                     "handled": True,
@@ -368,7 +380,7 @@ class WhatsAppProductQuestionnaire:
             result["handled"] = True
             return result
 
-    def _generate_next_question(self, session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _generate_next_question(self, sender_id: str, session: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Re-query BIS evidence and generate at most one useful next question."""
         max_questions = 5
         asked = set(session.get("asked_questions", []))
@@ -385,8 +397,9 @@ class WhatsAppProductQuestionnaire:
             f"Indian Standard Quality Control Order\n{answer_context}"
         )
 
-        engine = session.get("rag_engine")
-        catalogue = session.get("catalogue")
+        runtime = self._runtime.get(sender_id, {})
+        engine = runtime.get("rag_engine")
+        catalogue = runtime.get("catalogue")
         candidates = list(session.get("catalogue_candidates", []))
         evidence_rows: List[Dict[str, Any]] = []
         if engine is not None:
@@ -410,7 +423,7 @@ class WhatsAppProductQuestionnaire:
             except Exception:
                 pass
 
-        provider = session.get("llm_provider")
+        provider = runtime.get("llm_provider")
         if provider is None:
             return None
 
