@@ -33,6 +33,10 @@ _STOP_WORDS = {
     "qco", "isi", "mark", "marking", "current", "official", "source",
     "evidence", "retrieved", "user", "details", "provided", "seeking",
     "based", "exact", "following", "activity", "use", "used",
+    "assess", "potentially", "potential", "identify", "scope", "applicability", "applies",
+    "title", "edition", "quality", "control", "order", "status", "detailed", "information",
+    "sources", "provide", "still", "confirm", "confirmation", "role", "intended",
+    "collect", "record", "recorded", "query", "answer", "steps", "next", "exactly",
 }
 
 
@@ -174,45 +178,42 @@ class BISStandardCatalogue:
                 if identifier == identifier_query or identifier.startswith(identifier_query):
                     exact_candidates.extend((idx, 10.0) for idx in indices)
 
-        ranked: dict[int, float] = {idx: score for idx, score in exact_candidates}
+        # Exact identifiers outrank lexical candidates and preserve edition/part matches.
+        ranked: dict[int, float] = {idx: 1.0 for idx, _ in exact_candidates}
+        exact_indices = {idx for idx, _ in exact_candidates}
         query_terms = list(dict.fromkeys(_tokens(query_text)))
         if query_terms:
-            query_weight = 0.0
+            lexical_scores: dict[int, float] = defaultdict(float)
+            total_query_weight = 0.0
             for term in query_terms:
                 doc_freq = self._doc_frequency.get(term, 0)
-                if not doc_freq:
-                    continue
                 idf = 1.0 + __import__("math").log((len(self.records) + 1) / (doc_freq + 1))
-                query_weight += idf
+                total_query_weight += idf
                 for idx in self._postings.get(term, []):
                     record = self.records[idx]
                     title_terms = set(_tokens(record.title))
                     number_terms = set(_tokens(record.is_number))
                     department_terms = set(_tokens(record.technical_department))
-                    weight = idf
+                    committee_terms = set(_tokens(record.sectional_committee))
+                    type_terms = set(_tokens(record.standard_type))
                     if term in title_terms:
-                        weight *= 2.6
+                        multiplier = 2.6
                     elif term in number_terms:
-                        weight *= 2.0
+                        multiplier = 2.0
                     elif term in department_terms:
-                        weight *= 0.65
+                        multiplier = 0.65
+                    elif term in committee_terms or term in type_terms:
+                        multiplier = 0.45
                     else:
-                        weight *= 0.45
-                    ranked[idx] = ranked.get(idx, 0.0) + weight
+                        multiplier = 0.25
+                    lexical_scores[idx] += idf * multiplier
 
-            if query_weight:
-                for idx in list(ranked):
-                    if ranked[idx] < 10.0:
-                        ranked[idx] = ranked[idx] / query_weight
-
-        ordered = sorted(
-            ranked.items(),
-            key=lambda pair: (
-                pair[1],
-                bool(set(_tokens(self.records[pair[0]].title)) & set(query_terms)),
-            ),
-            reverse=True,
-        )
+            # Normalize to 0..1 so the threshold behaves consistently for both
+            # short product labels and long questionnaire submissions.
+            denominator = max(total_query_weight * 2.6, 1e-9)
+            for idx, weighted_score in lexical_scores.items():
+                normalized_score = min(1.0, weighted_score / denominator)
+                ranked[idx] = max(ranked.get(idx, 0.0), normalized_score)
 
         results: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -222,7 +223,7 @@ class BISStandardCatalogue:
             if key in seen:
                 continue
             # Avoid returning weak accidental hits caused by generic words.
-            if score < 0.22:
+            if score < 0.12:
                 continue
             seen.add(key)
             results.append(record.to_catalogue_chunk(score))
